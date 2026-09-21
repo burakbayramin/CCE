@@ -354,9 +354,28 @@ Karaktere özel context kullanan, sınırlandırılmış turn-based scene engine
 #### Scene yaşam döngüsü
 
 ```text
-SCHEDULED → PLANNING → RUNNING → PROCESSING → COMPLETED
-                         └──────► INTERRUPTED / FAILED / CANCELLED
+Ana akış:  SCHEDULED → PLANNING → RUNNING → PROCESSING → COMPLETED
+Diğer sonlar: CANCELLED, INTERRUPTED, FAILED (aşağıdaki tabloya göre)
 ```
+
+| Başlangıç | Hedef | Koşul |
+| --- | --- | --- |
+| SCHEDULED | PLANNING | Tetikleyici geçerli, katılımcı rezervasyonları alındı |
+| SCHEDULED | CANCELLED | Aday geçersizleşti, lifecycle/iptal değişti veya World Owner durdurdu |
+| PLANNING | RUNNING | Katılımcı, konum, görünürlük ve bütçe kesinleşti |
+| PLANNING | CANCELLED | Turn başlamadan durdurma veya geçersizleşme |
+| PLANNING | FAILED | Operasyonel hata, retry sınırı doldu |
+| RUNNING | PROCESSING | Scene Controller'ın kendi bitirme koşulu: doğal sonuç, amaç, karşılıklı bitirme, turn/token bütçesi veya idle timeout |
+| RUNNING | INTERRUPTED | Dışarıdan kesinti: admin mesajı (AK-003), World Owner müdahalesi, güvenlik durdurması, karakter askıya alma; en az bir commit edilmiş turn var |
+| RUNNING | CANCELLED | Hiç commit edilmiş turn yokken iptal veya dışarıdan kesinti |
+| RUNNING | FAILED | Kurtarılamayan operasyonel hata |
+| PROCESSING | COMPLETED | Tüm katılımcı etkileri tek atomik sonuç transaction'ında uygulandı (geçerli sıfır değişim de sonuçtur) |
+| PROCESSING | FAILED | Retry sınırı doldu veya doğrulanamayan çıktı quarantine'e alındı |
+
+- `CANCELLED` yalnız hiç commit edilmiş turn yokken kullanılır; deneyim, memory veya relationship etkisi üretmez. Hiç turn commit edilmeden `RUNNING` durumunda dışarıdan kesilen sahne de `CANCELLED` olur.
+- `INTERRUPTED` sahnede en az bir commit edilmiş turn vardır. Bu prefix'in domain etkileri WADR-011'deki idempotent sonuç protokolüyle en fazla bir kez uygulanır. Sahne `COMPLETED` sayılmaz. Processing durumu `scene_processing_runs` içinde ayrıca izlenir ve rezervasyon, bu processing başarıyla bitince bekleyen admin chat'e devredilir.
+- `FAILED` operasyonel hatadır ve başarı anlamına gelmez. Recovery işi tarafından taranır, UI'da görünür kalır, manuel retry aynı domain tekilleştirme kurallarına uyar.
+- `COMPLETED`, `INTERRUPTED` ve `CANCELLED` terminal durumlardır. Yalnız `FAILED` manuel retry ile yeniden ele alınabilir.
 
 - Planning aşaması katılımcıları, konumu, tetikleyiciyi, amacı, görünürlüğü ve bütçeyi kesinleştirir.
 - Her karakter yalnız kendi personality/goals/memory state'ini, karşı taraf hakkında bildiklerini, kendi yönlü relationship state'ini ve ortak transcript'i görür.
@@ -402,10 +421,10 @@ SCHEDULED → PLANNING → RUNNING → PROCESSING → COMPLETED
 - World Owner sahne katılımcısına mesaj gönderdiğinde mesaj kalıcılaştırılır ve sahneye idempotent bir durma isteği kaydedilir. UI “mevcut konuşmasını tamamlıyor” durumunu gösterir; mesaj kaybolmaz veya hemen yanıtlanmış sayılmaz.
 - O anda üretilen turn, mevcut token/süre sınırları içinde tamamlanıp doğrulanır. Sonraki sahne turn'ü başlatılmaz. Aktif üretim yoksa son commit edilmiş turn güvenli sınırdır; durma isteği ve yeni turn başlatma kontrolü atomik olarak koordine edilir.
 - Turn timeout veya validation hatasıyla biterse geçersiz/kısmi üretim yaşanmış konuşma sayılmaz; son geçerli transcript kullanılır. Sahneyi kapatmak için ek bir LLM kapanış diyaloğu zorunlu tutulmaz.
-- Scene, admin sohbeti nedeniyle `INTERRUPTED` olarak kaydedilir; transcript ve iki katılımcının geçerli domain etkileri mevcut atomik/idempotent processing protokolüyle tamamlanır. Kesintili sahne tam hedefini başarmış gibi `COMPLETED` sayılmaz; processing'in tamamlanması ayrıca izlenir.
+- Scene, admin sohbeti nedeniyle durdurulduğunda en az bir commit edilmiş turn varsa `INTERRUPTED` olarak kaydedilir; transcript ve iki katılımcının geçerli domain etkileri mevcut atomik/idempotent processing protokolüyle tamamlanır. Kesintili sahne tam hedefini başarmış gibi `COMPLETED` sayılmaz; processing'in tamamlanması `scene_processing_runs` içinde ayrıca izlenir. Hiç commit edilmiş turn yoksa `RUNNING` durumunda olsa da `CANCELLED` olarak kaydedilir ve domain etkisi üretilmez.
 - Hedef karakterin rezervasyonu, gerekli memory/relationship/affect/goal etkileri commit edildikten sonra bekleyen admin chat'e devredilir; araya yeni autonomous etkileşim giremez. Sahne zaten `PROCESSING` aşamasındaysa mevcut processing'in tamamlanması beklenir, aynı etkiler yeniden uygulanmaz.
 - Bu devri açmak için gerekli processing işleri ilgisiz arka plan işlerinden önce yürütülür. Processing başarısızsa UI hata/bekleme durumunu gösterir; tutarsız eski state ile sessizce chat başlatılmaz.
-- Henüz turn başlamamış planning/scheduled sahne durdurulursa yaşanmamış deneyim veya sahne memory'si oluşturulmaz. Diğer katılımcının rezervasyonu güvenli sonlandırma sonrası serbest bırakılır.
+- Hiç turn commit edilmemiş `SCHEDULED`, `PLANNING` veya `RUNNING` sahne durdurulursa `CANCELLED` olur; yaşanmamış deneyim veya sahne memory'si oluşturulmaz ve sonuç processing'i beklenmeden hedef karakterin rezervasyonu bekleyen admin chat'e devredilir. Diğer katılımcının rezervasyonu güvenli sonlandırma sonrası serbest bırakılır.
 - Chat context'i son sahnenin commit edilmiş etkilerini içerir; embedding tamamlanmamışsa recent-memory yolu kullanılır. Teknik durma nedeni diğer karaktere admin mesajının içeriğini veya özel bilgileri öğrenme hakkı vermez.
 - Yarım kalan konu, ileride geçerli tetikleyici ve bütçe/cooldown kurallarıyla yeni bir sahnede ele alınabilir. Eski sahne dondurulduğu noktadan otomatik devam ettirilmez ve gelecekte tamamlanması garanti edilmez.
 
