@@ -518,7 +518,9 @@ Memory kaydı birbirinden bağımsız şu eksenleri taşır:
 
 Memory görünürlüğünden ayrı olarak `never`, `world_owner_only`, `trusted_characters`, `explicit_permission` veya `freely_shareable` gibi paylaşım politikası taşır.
 
-`world_owner_only`, bilginin yalnız World Owner'ın dünya içi insan kimliğine yönelik konuşmalarda kullanılabileceği anlamına gelir; başka hiçbir alıcı için context'e girmez. World Owner'ın belirli bir bilgi ve alıcı için verdiği açık izin (AK-001), kaydın politikasını değiştirmez; kaynak mesaja bağlı ayrı bir izin kaydı olarak tutulur.
+`world_owner_only`, dış alıcıya konuşma üretiminde, AK-001 kapsamında geçerli ve bilgi/alıcı kapsamı eşleşen açık izin yoksa bilginin yalnız World Owner'ın dünya içi insan kimliğine yönelik context'te kullanılabileceği anlamına gelir. World Owner'ın belirli bir bilgi ve alıcı için verdiği açık izin, kaydın politikasını değiştirmez; kaynak mesaja bağlı ayrı bir izin kaydı olarak tutulur. İzin yalnız kapsadığı bilgi ve alıcı için değerlendirilir; başka alıcılara veya public yayına erişim sağlamaz.
+
+Karakterin kendi bilgisi üzerinde yürütülen yetkili memory extraction, reflection ve consolidation işlemleri dış alıcıya paylaşım sayılmaz; `never` veya `world_owner_only` politikası tek başına bu iç işlemeyi engellemez. Türetilmiş kayıtlar kaynak provenance'ını ve erişim/paylaşım sınırlarını korur; dış alıcı context'ine alınmadan önce politika ve varsa kapsamı eşleşen açık izin yeniden değerlendirilir.
 
 - `never` kapsamındaki bilginin içeriği, izin verilmeyen bir alıcıya konuşma üreten context'in hiçbir bölümüne verilmez; yalnız paylaşım seçeneklerinden çıkarmak yeterli değildir. `world_owner_only` ve diğer politikalar da gerçek alıcıya göre değerlendirilir.
 - Diğer paylaşımlar relationship, personality, goals, verilmiş sözler ve hassasiyet kuralları altında değerlendirilir.
@@ -1120,6 +1122,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - Kişilik testlerinde tekrarlı chat/reflection temel personality, temperament, ana değerler veya bunlardan türetilen baseline'ı otomatik değiştirmemelidir. Buna karşılık kaynak deneyime dayanan ilişki/görüş/goal değişimleri mümkün olmalı; kişiye özgü yakınlık genel kişilik dönüşümü olarak kaydedilmemelidir.
 - Contributor A, contributor B'nin taslağını veya medyasını görememeli/değiştirememeli; aynı pooled bağlantının tekrar kullanımı kimlik sızdırmamalıdır. Anonymous/contributor private chat stream'ine erişememelidir.
 - Yasak bilgi doğrudan memory'den veya türetilmiş reflection/summary/goal üzerinden alıcı context'ine girmemeli; ortak transcript içsel intent/affect alanlarını taşımamalıdır. Public projection ve medya yalnız onaylanan sürümü sunmalıdır.
+- `world_owner_only` bilgisi yetkili iç reflection/consolidation işleminde kullanılabilmeli; dış konuşmada World Owner'a ve yalnız AK-001 izninin kapsadığı diğer alıcıya açılmalıdır. İzin kaydın politikasını değiştirmemeli, ilgisiz bilgiye/alıcıya veya public yayına genişlememeli; türetilmiş kayıtlar aynı sınırları korumalıdır.
 - Bozuk JSON, geçersiz domain action, timeout ve retry sınırı deterministic hata/quarantine akışına gitmeli; başarısızlık uydurma başarılı sonuçla örtülmemelidir.
 - Model benchmark'ında Türkçe karakter tutarlılığı, provenance koruma, retrieval başarısı, şema başarısı, ilk token/toplam gecikme ve uzun süreli kararlılık ölçülmelidir. Sayısal kabul eşikleri benchmark sonrası, MVP kabul değerlendirmesinden önce sürümlü eval planında sabitlenmelidir; yalnız şema geçmesi davranış kalitesi sayılmaz.
 - Backup/restore ve recovery tatbikatı uygulanmalı; bu belgede testlerin tanımlanmış olması testlerin geçtiği anlamına gelmemelidir.
