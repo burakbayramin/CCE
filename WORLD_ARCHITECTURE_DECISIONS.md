@@ -147,7 +147,7 @@ UNDER_REVIEW
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Katkıcıların ve ziyaretçilerin aktif karakterleri, ilişkileri, dünya zaman çizelgesini ve karakterler arası etkileşimleri hangi ayrıntı düzeyinde görebileceği belirlenecektir.
+Bu karar, katkıcıların ve ziyaretçilerin aktif karakterleri, ilişkileri, dünya zaman çizelgesini ve karakterler arası etkileşimleri hangi ayrıntı düzeyinde görebileceğini belirler.
 
 ### Karar
 
@@ -200,7 +200,7 @@ Public sayfalar internal tablolara doğrudan erişmez; yalnızca yayınlanmak ü
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Katkıcının hangi karakter özelliklerini belirleyebileceği, hangi alanların engine veya World Owner tarafından yönetileceği ve serbest metin alanlarının nasıl doğrulanacağı belirlenecektir.
+Bu karar, katkıcının hangi karakter özelliklerini belirleyebileceğini, hangi alanların engine veya World Owner tarafından yönetildiğini ve serbest metin alanlarının nasıl doğrulandığını belirler.
 
 ### Karar
 
@@ -252,7 +252,7 @@ World Owner'ın oluşturduğu karakterler de aynı yapılandırılmış form, ot
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Dünyanın gerçek zamanla ilişkisi, karakterlerin konumları, karşılaşma koşulları ve world state'in ayrıntı düzeyi belirlenecektir.
+Bu karar, dünyanın gerçek zamanla ilişkisini, karakterlerin konumlarını, karşılaşma koşullarını ve world state'in ayrıntı düzeyini belirler.
 
 ### Karar
 
@@ -305,7 +305,7 @@ State; zaman bloğu değişimi, planlanmış scene, world event, World Owner kon
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-En fazla 50 karakter arasından hangi etkileşimlerin üretileceği, önceliklendirileceği ve LLM/worker bütçesiyle nasıl sınırlandırılacağı belirlenecektir.
+Bu karar, en fazla 50 karakter arasından hangi etkileşimlerin üretileceğini, nasıl önceliklendirileceğini ve LLM/worker bütçesiyle nasıl sınırlandırılacağını belirler.
 
 ### Karar
 
@@ -354,7 +354,7 @@ MVP başlangıç hedefi donanım testleriyle kesinleştirilmek üzere 3 aktif ka
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Seçilen karakterlerin scene'i nasıl yürüteceği, konuşma sırasının nasıl belirleneceği ve sonuçların kalıcı state'e nasıl uygulanacağı belirlenecektir.
+Bu karar, seçilen karakterlerin scene'i nasıl yürüttüğünü, konuşma sırasının nasıl belirlendiğini ve sonuçların kalıcı state'e nasıl uygulandığını belirler.
 
 ### Karar
 
@@ -444,7 +444,7 @@ Diğer sonlar: CANCELLED, INTERRUPTED, FAILED (aşağıdaki tabloya göre)
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Karakterler arası objektif bağların, öznel algıların, çok boyutlu ilişki state'inin ve değişim geçmişinin nasıl temsil edileceği belirlenecektir.
+Bu karar, karakterler arası objektif bağların, öznel algıların, çok boyutlu ilişki state'inin ve değişim geçmişinin nasıl temsil edildiğini belirler.
 
 ### Karar
 
@@ -481,7 +481,7 @@ Public World Viewer ham sayıları veya gizli öznel algıları göstermez. Yaln
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Karaktere özel bilgi, ortak deneyim, sır, söylenti ve public world bilgisinin kapsamı ile bir karakterden diğerine aktarılırken provenance ve güven düzeyinin nasıl korunacağı belirlenecektir.
+Bu karar, karaktere özel bilgi, ortak deneyim, sır, söylenti ve public world bilgisinin kapsamını; aktarım sırasında provenance ve güven düzeyinin nasıl korunduğunu belirler.
 
 ### Karar
 
@@ -564,7 +564,7 @@ Context builder yalnızca karakterin kendi memory'lerini, katıldığı paylaş�
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Karakterlerin kendi hedeflerini oluşturma, eylem önerme, scene başlatma, deneyimleri değerlendirme ve zaman içinde kontrollü biçimde gelişme sınırları belirlenecektir.
+Bu karar, karakterlerin hedef oluşturma, eylem önerme, scene başlatma, deneyim değerlendirme ve kontrollü gelişme sınırlarını belirler.
 
 ### Karar
 
@@ -621,7 +621,7 @@ Planlama sürekli polling yerine event ve zaman bloğu değişimlerinde, bütçe
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Katkıcı girdilerinin, karakter tanımlarının, autonomous scene'lerin ve public projection'ların hangi otomatik ve insan denetimlerinden geçeceği belirlenecektir.
+Bu karar, katkıcı girdilerinin, karakter tanımlarının, autonomous scene'lerin ve public projection'ların hangi otomatik ve insan denetimlerinden geçtiğini belirler.
 
 ### Kabul edilen moderasyon mimarisi
 
@@ -677,7 +677,7 @@ Katmanlı otomatik kontroller, World Owner onayı ve internal/public yayın ayr�
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Deployment modeli, LLM ve embedding runtime'ı, backend, veri platformu, queue/worker, frontend ve gözlemlenebilirlik alt kararları sırasıyla değerlendirilecektir.
+Bu karar; deployment modeli, LLM/embedding runtime'ı, backend, veri platformu, queue/worker, frontend ve gözlemlenebilirlik alt kararlarını içerir. Alt kararlar aşağıda sırasıyla kaydedilmiştir.
 
 ### Alt karar 1 — Deployment modeli: KABUL
 
@@ -893,7 +893,7 @@ Container-first, provider-neutral deployment; GitHub Actions CI ve manuel produc
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-İlişkisel veri ile JSONB sınırı, şema modülleri, kimlik/zaman kuralları, event ve snapshot tabloları, indeksler ve retention yaklaşımı sırasıyla değerlendirilecektir.
+Bu karar; ilişkisel veri ile JSONB sınırını, şema modüllerini, kimlik/zaman kurallarını, event ve snapshot tablolarını, indeksleri ve retention yaklaşımını kapsar.
 
 ### Alt karar 1 — İlişkisel çekirdek ve JSONB sınırı: KABUL
 
@@ -948,7 +948,7 @@ Erişim sınırına göre `public`, `world_private` ve `ops_private` uygulama ş
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Repo sınırı, modüler backend yapısı, frontend feature sınırları, ortak sözleşmeler ve bağımlılık yönleri sırasıyla değerlendirilecektir.
+Bu karar; repo sınırını, modüler backend yapısını, frontend feature sınırlarını, ortak sözleşmeleri ve bağımlılık yönlerini kapsar.
 
 ### Karar
 
@@ -1060,7 +1060,7 @@ apps/web/src/
 **Durum:** `KABUL`  
 **Tarih:** 2026-09-21
 
-Ortak dünyanın ilk yayınlanabilir sürümünde bulunacak dikey ürün akışı, ertelenecek özellikler ve tamamlanma ölçütleri belirlenecektir.
+Bu karar, ortak dünyanın ilk yayınlanabilir sürümündeki dikey ürün akışını, ertelenen özellikleri ve tamamlanma ölçütlerini belirler.
 
 ### Karar
 
