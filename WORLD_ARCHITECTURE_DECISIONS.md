@@ -156,11 +156,13 @@ World Owner; karakterlerle chat, moderasyon, internal world state, memory/mood/r
 
 Karakter etkileşimleri ve world event projection'ları en az aşağıdaki görünürlüklerden birini taşır:
 
-- `internal`: yalnız engine ve World Owner
+- `internal`: insan erişimi yalnız World Owner'a açıktır; engine erişimi görev yetkisiyle, AI karakter erişimi ise ayrıca bilgi kapsamıyla sınırlandırılır
 - `public_summary`: güvenli ve özetlenmiş public anlatım
 - `featured`: World Owner tarafından özellikle yayınlanmış içerik
 
 Public sayfalar internal tablolara doğrudan erişmez; yalnızca yayınlanmak üzere hazırlanmış ve RLS/izin politikalarıyla korunan projection'ları okur.
+
+İnsanlara yayın görünürlüğü, karakterlerin ne bildiğinden ayrı bir eksendir. Bir sahnenin `internal` olması katılımcıların gözlemlediklerini öğrenmesini engellemez; bir içeriğin World Viewer'da yayınlanması da bütün karakterlere otomatik bilgi kazandırmaz.
 
 ---
 
@@ -228,6 +230,18 @@ Merkezî dünya saati, ayrık/anlamlı konumlar ve scene tabanlı event-driven s
 - MVP'de dünya zamanı gerçek zamanla 1:1 ilerler ve başlangıç saat dilimi `Europe/Istanbul` olur.
 - Domain kodu sistem saatini doğrudan okumaz; merkezî bir `world_clock` arayüzünü kullanır.
 - Duraklatma, hızlandırma, ileri sarma ve testlerde sahte zaman desteği mimari olarak mümkün bırakılır; yönetim arayüzü sonraki faza bırakılabilir.
+- Worker çevrimdışıyken dünya saati gerçek zamanla 1:1 ilerlemeye devam eder; AI etkileşimleri bekler. Geri dönüşte güncel zamana uyarlanır, gerçekleşmemiş konuşmalar geçmişte yaşanmış gibi üretilmez (`AK-002`: KABUL).
+- Queue lease, bağlantı timeout'u ve worker heartbeat gibi operasyonel süreler dünya saatinden bağımsız gerçek zamanla ölçülür. Dünya zamanını duraklatmak operasyonel timeout'ları durdurmaz.
+
+#### Çevrimdışı dönem ve geri dönüş — AK-002: KABUL
+
+- Worker çevrimdışıyken yeni autonomous sahne üretimi durur; eksik diyalog, karşılaşma veya ilişki deneyimi sonradan uydurulmaz. Public/control plane çalışabilir; UI AI worker'ın çevrimdışı ve işlerin bekliyor olduğunu gösterir.
+- Geri dönüşte önce kalıcı sonuçlar ve yarım işler uzlaştırılır. Commit edilmiş turn'ler korunur; yalnız gerçekten gerçekleşmiş etkileşimin etkileri idempotent processing ile tamamlanır. Artık zaman/konum koşulları geçerli olmayan yarım sahne eski zamandan konuşma üretmeye devam etmez; geçerli prefix'i üzerinden kesintili olarak sonuçlandırılır.
+- Ardından presence, konum ve rutinler mevcut dünya saati ve geçerli dünya kurallarına göre deterministik olarak güncellenir. Kaçırılan her zaman bloğunu tek tek oynatmak yerine güncel duruma uyarlama kaydı tutulur; bu kayıt yaşanmış sosyal deneyim veya episodic memory sayılmaz.
+- Henüz başlamamış eski sahne adayları güncel konum, müsaitlik, tetikleyici, cooldown ve bütçeyle yeniden değerlendirilir. Geçersiz aday gerekçesiyle kapatılır; hâlâ anlamlı olan etkileşim güncel zaman için planlanabilir. Geçmiş günlerin kullanılmamış sahne kotası birikmez.
+- Birikmiş rutin/zaman bloğu bakım işleri gerekli güncel hesaplamaya birleştirilir. Süresi geçmiş goal tetikleyicileri güncel goal koşullarıyla değerlendirilir; geçen süre, eylemin yapılmış veya hedefin başarılmış olduğu anlamına gelmez.
+- Kalıcı chat mesajları ve sonuç uygulama işleri sırf eski oldukları için kaybedilmez. Bekleyen cevap üretimi iptal/lifecycle/context kontrollerinden sonra güncel zamanda yürütülür; gecikme görünürdür, cevap geçmişe tarihlenmez.
+- Son geçerlilik, iş türü ve tetikleyicinin geçerli olduğu zaman aralığına bağlanır; bütün job'lara aynı TTL uygulanmaz. Kesin süreler iş sözleşmesinde yapılandırılır. Çevrimdışı geçen dünya zamanı mood'un baseline'a yaklaşma ve gündelik memory'nin hatırlanma önceliği hesaplarına dahildir. Bunlar ayrı hesaplamalardır; önemli deneyimler korunur, güven otomatik düzelmez ve zaman geçmesi memory'nin fiziksel silinmesini gerektirmez.
 
 #### Konum ve presence
 
@@ -293,6 +307,13 @@ MVP başlangıç hedefi donanım testleriyle kesinleştirilmek üzere 3–5 akti
 - Queue/model yükü arttığında yeni scene üretimi otomatik olarak yavaşlatılabilir.
 - World Owner konuşmaları autonomous scene kotasından sayılmaz; fakat karakter state'ini ve müsaitliğini etkileyebilir.
 
+#### Toplam AI yükü ve öncelik
+
+- Chat, scene turn'leri, director, memory extraction, reflection, consolidation, summary, model tabanlı moderasyon ve çıktı düzeltme denemeleri ortak kaynak muhasebesine dahildir. Scene sayısı toplam model maliyetinin yerine geçmez.
+- İş türü bazında token, süre ve deneme sınırları bulunur; başarısız denemeler de tüketimden sayılır. Yeni iş kabulünde bütçe ayrılır, bitişte gerçek tüketimle uzlaştırılır.
+- Kaynak ve karakter uygunluğu sağlanan admin chat işleri, henüz başlamamış autonomous/background GPU işlerinden önce seçilir. Hedef karakter devam eden sahnedeyse AK-003 uyarınca mevcut turn tamamlanır, sahne güvenli biçimde sonlandırılıp etkileri kaydedilir ve ardından chat başlar. GPU önceliği bu state tutarlılığı sınırını atlayamaz.
+- Uzun arka plan akışları kısa, yeniden başlanabilir model görevlerine bölünür. Önceliklendirme GPU çağrıları arasındaki güvenli noktalarda uygulanır; sonsuz bekleyen arka plan işleri ve en yaşlı iş süresi izlenir.
+
 ---
 
 ## WADR-006 — Karakterler Arası Konuşma ve Event Modeli
@@ -315,6 +336,7 @@ SCHEDULED → PLANNING → RUNNING → PROCESSING → COMPLETED
 
 - Planning aşaması katılımcıları, konumu, tetikleyiciyi, amacı, görünürlüğü ve bütçeyi kesinleştirir.
 - Her karakter yalnız kendi personality/goals/memory state'ini, karşı taraf hakkında bildiklerini, kendi yönlü relationship state'ini ve ortak transcript'i görür.
+- Ortak transcript yalnız commit edilmiş konuşmaları ve diğer katılımcıların gözlemleyebildiği, backend tarafından kabul edilmiş eylemleri içerir. Private intent, içsel affect sinyali, reflection ve engine/debug alanları ortak transcript'e eklenmez.
 - Karakter başka bir karakterin private memory veya internal state'ini göremez.
 - Her LLM çağrısı yalnızca ilgili karakterin tek turn'ünü üretir; başka karakter adına konuşamaz.
 - Çıktı utterance, action, intent, affect sinyali ve scene bitirme sinyali gibi yapılandırılmış alanlarla doğrulanır.
@@ -338,6 +360,30 @@ SCHEDULED → PLANNING → RUNNING → PROCESSING → COMPLETED
 - Processing işleri idempotent olur; yarım scene etkilerinin nasıl uygulanacağı açık durum kurallarına bağlanır.
 - Varsayılan scene bütçesi yaklaşık 6–10 turn ile sınırlıdır.
 - Düşük önemdeki arka plan karşılaşmaları tam turn-by-turn diyalog yerine tek çağrılı özet event olarak üretilebilir.
+
+#### Eşzamanlılık ve sonuç uygulama sınırı
+
+- GPU concurrency 1, karakter state'inin tek akış tarafından kullanıldığını garanti etmez. Scene/chat için karakter bazlı etkin etkileşim rezervasyonu ayrıca tutulur; çok katılımcılı rezervasyon tek kısa transaction'da alınır.
+- Rezervasyonun aktif sahibini ve süresini doğrulayan deneme kimliği kullanılır. LLM çalışırken veritabanı transaction'ı veya uzun süreli satır kilidi açık tutulmaz.
+- Context, kullanılan state sürümleriyle ilişkilendirilir. Sonuç kabulünde ilgili state sürümleri, lifecycle, rezervasyon ve iptal durumu doğrulanır; eski context ile üretilmiş sonuç sessizce yeni state'e uygulanmaz. Yeniden üretim bounded retry kurallarına tabidir.
+- Sahne sonrası memory, relationship, affect ve goal adayları önce hazırlanır/doğrulanır. Birlikte görünmesi gereken domain etkileri bütün katılımcılar için kısa, atomik bir sonuç uygulama transaction'ında kaydedilir; geçerli sıfır değişim de sonuçtur.
+- Domain etkileri uygulanmadan sahne `COMPLETED` olmaz ve ilgili karakter yeni etkileşime hazır sayılmaz. Embedding, public summary ve bildirimler gibi türetilmiş işler outbox ile sonradan yürütülebilir; bunlar canonical sonucun commit edilmesini engellemez.
+- Henüz embedding'i üretilmemiş yeni canonical memory'ler context'ten kaybolmaz; yetkili son etkileşim kayıtları/recent memory yolu vector indeksinden bağımsız okunur.
+- Yarım sahnede yalnız commit edilmiş, geçerli turn'ler yaşanmış etkileşim sayılır; üretilmemiş devamı varsayılmaz. Kesinti nedeni, son kabul edilen turn ve processing durumu ayrı kaydedilir. Bu prefix'in domain etkileri aynı sonuç protokolüyle en fazla bir kez uygulanır; doğrulanamayan çıktı quarantine'e alınır.
+- `PLANNING` ve `PROCESSING` dahil her aşamanın hata/iptal/yeniden deneme geçişleri uygulama sözleşmesinde tanımlanır. Operasyonel hata, sahnenin kendiliğinden başarıyla tamamlandığı anlamına gelmez.
+- Admin'in sahnedeki karaktere mesaj göndermesi hâlinde rezervasyon devri aşağıdaki AK-003 akışını uygular.
+
+#### Admin sohbeti için güvenli sahne sonlandırma — AK-003: KABUL
+
+- World Owner sahne katılımcısına mesaj gönderdiğinde mesaj kalıcılaştırılır ve sahneye idempotent bir durma isteği kaydedilir. UI “mevcut konuşmasını tamamlıyor” durumunu gösterir; mesaj kaybolmaz veya hemen yanıtlanmış sayılmaz.
+- O anda üretilen turn, mevcut token/süre sınırları içinde tamamlanıp doğrulanır. Sonraki sahne turn'ü başlatılmaz. Aktif üretim yoksa son commit edilmiş turn güvenli sınırdır; durma isteği ve yeni turn başlatma kontrolü atomik olarak koordine edilir.
+- Turn timeout veya validation hatasıyla biterse geçersiz/kısmi üretim yaşanmış konuşma sayılmaz; son geçerli transcript kullanılır. Sahneyi kapatmak için ek bir LLM kapanış diyaloğu zorunlu tutulmaz.
+- Scene, admin sohbeti nedeniyle `INTERRUPTED` olarak kaydedilir; transcript ve iki katılımcının geçerli domain etkileri mevcut atomik/idempotent processing protokolüyle tamamlanır. Kesintili sahne tam hedefini başarmış gibi `COMPLETED` sayılmaz; processing'in tamamlanması ayrıca izlenir.
+- Hedef karakterin rezervasyonu, gerekli memory/relationship/affect/goal etkileri commit edildikten sonra bekleyen admin chat'e devredilir; araya yeni autonomous etkileşim giremez. Sahne zaten `PROCESSING` aşamasındaysa mevcut processing'in tamamlanması beklenir, aynı etkiler yeniden uygulanmaz.
+- Bu devri açmak için gerekli processing işleri ilgisiz arka plan işlerinden önce yürütülür. Processing başarısızsa UI hata/bekleme durumunu gösterir; tutarsız eski state ile sessizce chat başlatılmaz.
+- Henüz turn başlamamış planning/scheduled sahne durdurulursa yaşanmamış deneyim veya sahne memory'si oluşturulmaz. Diğer katılımcının rezervasyonu güvenli sonlandırma sonrası serbest bırakılır.
+- Chat context'i son sahnenin commit edilmiş etkilerini içerir; embedding tamamlanmamışsa recent-memory yolu kullanılır. Teknik durma nedeni diğer karaktere admin mesajının içeriğini veya özel bilgileri öğrenme hakkı vermez.
+- Yarım kalan konu, ileride geçerli tetikleyici ve bütçe/cooldown kurallarıyla yeni bir sahnede ele alınabilir. Eski sahne dondurulduğu noktadan otomatik devam ettirilmez ve gelecekte tamamlanması garanti edilmez.
 
 ---
 
@@ -405,18 +451,48 @@ Kapsam, bilgi türü, provenance, confidence ve shareability taşıyan epistemik
 #### Paylaşılabilirlik
 
 Memory görünürlüğünden ayrı olarak `never`, `owner_only`, `trusted_characters`, `explicit_permission` veya `freely_shareable` gibi paylaşım politikası taşır.
-- `never` kapsamındaki bilgi paylaşma seçeneği olarak LLM context'ine verilmez.
+
+- `never` kapsamındaki bilginin içeriği, izin verilmeyen bir alıcıya konuşma üreten context'in hiçbir bölümüne verilmez; yalnız paylaşım seçeneklerinden çıkarmak yeterli değildir. `owner_only` ve diğer politikalar da gerçek alıcıya göre değerlendirilir.
 - Diğer paylaşımlar relationship, personality, goals, verilmiş sözler ve hassasiyet kuralları altında değerlendirilir.
+
+#### World Owner sohbetlerinin paylaşımı — AK-001: KABUL
+
+- Özel sohbet memory'leri varsayılan `private` erişim ve `owner_only` paylaşım politikası taşır. Karakter bunları kendi deneyimi olarak değerlendirir; başka karaktere yönelik konuşma context'ine izin olmadan taşımaz.
+- World Owner'ın açık izni, yalnız belirtilen bilgi ve belirtilen alıcılar için paylaşım yetkisi oluşturur. Örneğin “bunu Mira'ya söyleyebilirsin” bütün sohbeti veya bütün karakterleri kapsamaz. Belirsiz izin kapsamı genişletilmez.
+- İzin, ilgili kaynak mesaj ve bilgi/alıcı kapsamıyla kaydedilir; paylaşımda kaynak/provenance korunur. İzin verilmesi bilginin bütün karakterlere otomatik aktarılması değil, uygun bir etkileşimde paylaşılabilmesi demektir.
+- Trust, affection veya başka ilişki eşikleri açık izin yerine geçmez. Türetilmiş memory, reflection ve özetler de aynı sınırı korur; alıcı karaktere aktarım sonraki alıcılara sınırsız paylaşım hakkı vermez.
+- Karakterler arası paylaşım izni public World Viewer'da yayın izni değildir; özel sohbetlerin public yayın yasağı devam eder.
+
+#### Türetilen bilginin sınırları
+
+- Memory'den türetilen özet, reflection, goal, belief ve yeniden birleştirilmiş memory kaynak kimliklerini taşır; kaynakların erişim/paylaşım kısıtlarını kendiliğinden genişletemez.
+- Birden fazla kaynaktan türetilen kaydın izinli alıcıları kaynak izinlerinin kesişimiyle sınırlandırılır. Belirsiz veya eksik provenance daha geniş erişim gerekçesi olmaz; kayıt incelemeye ayrılır.
+- Context builder yalnız memory retrieval sonucunu değil, definition, goal, reflection, özet ve transcript dahil bütün context bileşenlerini alıcıya göre filtreler. Sadece model talimatıyla gizlilik garantisi verildiği varsayılmaz.
+- Public projection ayrı ve açık onaylı bir yayın ürünüdür; kaynak memory'nin karakterler arası paylaşım politikasını değiştirmez. Yayınlanması yasak içerik, sırf özetlendiği için yayınlanabilir hâle gelmez.
+- Consolidation veya tekrar sayısı bir claim/rumor'ı doğrulanmış fact'e çeviremez. Aynı kaynağın tekrarları bağımsız kanıt sayılmaz; fact kabulü için yetkili dünya kaydı veya açık doğrulama dayanağı gerekir.
+- Mood'un karaktere özgü baseline'a yaklaşması ve aşağıdaki hafıza davranışı AK-004 kapsamında kabul edilmiştir. Mood decay memory'yi silmez veya ilişki güvenini sıfırlamaz; temel kişiliğin gelişim sınırları WADR-009'da ayrıca tanımlanmıştır.
 
 #### Ortak deneyim ve öznel memory
 
 - Scene'in objektif ortak özeti `shared_experience` olarak kaydedilebilir.
+- Ortak özet, doğrulanmış eylem/gözlem ile katılımcı iddiasını ayırır; bir konuşmada söylenen şeyin doğruluğunu varsaymaz. Tek çağrılı arka plan özetleri de aynı bilgi kapsamı ve provenance kurallarına tabidir.
 - Her katılımcı aynı scene için kendi öznel memory'sini ayrı oluşturur.
 - Aynı olay karakterlerde farklı duygu, yorum ve confidence üretebilir.
 
 #### Retrieval sınırı
 
 Context builder yalnızca karakterin kendi memory'lerini, katıldığı paylaşımlı deneyimleri, gerçekten öğrendiği world bilgisini ve hedef karakter hakkında bildiklerini aday havuzuna alır. Başka karakterlerin private memory'si vector search adaylarına dahi dahil edilmez.
+
+#### Hatırlama, unutma ve consolidation — AK-004 alt kararı: KABUL
+
+- Önemli deneyimler, anlamlı sözler ve ilişki dönüm noktaları korunur. Gündelik/düşük önemdeki ayrıntıların hatırlanma önceliği dünya zamanı ilerledikçe azalabilir; bütün memory türlerine aynı decay uygulanmaz.
+- Unutma, retrieval erişilebilirliğinin/önceliğinin azalmasıdır; kendiliğinden veritabanı silme veya yaşanmış geçmişi değiştirme işlemi değildir. Fiziksel silme/anonimleştirme ayrı retention süreçlerine tabidir; korunma ilkesi bu süreçleri iptal etmez.
+- Context seçimi erişim filtresinden sonra konu ilgisi, önem, güncellik ve gerçek etkileşimlerle pekişme gibi sinyalleri bütçe içinde değerlendirir. Önemli memory'nin korunması her prompt'a tamamının eklenmesi demek değildir.
+- Konu yeniden açıldığında ilgili eski memory tekrar retrieval adayı olabilir; düşük öncelik kalıcı erişim yasağı değildir. Hatırlama, kaynağın kapsamını veya paylaşım iznini genişletemez.
+- Benzer anılar özetlenebilir; özet kaynak referanslarını, epistemik tür ayrımlarını ve en kısıtlı geçerli erişim/paylaşım sınırını korur. Çelişkili iddialar tek bir kesin gerçeğe dönüştürülmez; kaynak ayrıntıları yalnız özet üretildi diye silinmez.
+- Importance ve pekişme backend kurallarıyla doğrulanır; LLM sınırsız önem atayamaz. Aynı kaydın teknik retry veya tekrar retrieval ile okunması yeni deneyim/bağımsız kanıt sayılmaz ve tek başına yapay pekişme yaratmaz.
+- Yeterli dayanak bulunamayan ayrıntı uydurulmaz. Karakter belirsizliğini ifade edebilir veya açıklama isteyebilir; modelin tahmini yaşanmış bir anı olarak kalıcılaştırılmaz.
+- Decay hızları, önem eşikleri ve retrieval ağırlıkları sürümlü teknik parametrelerdir; önemli söz/dönüm noktası ile gündelik selamlaşma senaryoları üzerinden kalibre edilir. Çevrimdışı süre aynı world_clock hesabına dahildir; geçmiş dönem için yapay memory üretilmez.
 
 ---
 
@@ -491,6 +567,14 @@ Katmanlı otomatik kontroller, World Owner onayı ve internal/public yayın ayr�
 - Moderasyon sonucu, politika sürümü, risk kategorileri, reviewer kararı ve zamanları audit edilebilir biçimde tutulur.
 - World Owner; autonomy'yi veya queue'ları duraklatabilir, karakteri askıya alabilir, public içeriği gizleyebilir ve model/prompt sürümünü devre dışı bırakabilir.
 - Contributor başvuru sayısı, gönderim sıklığı ve medya yüklemeleri rate limit ve kötüye kullanım kontrollerine tabidir.
+
+#### İçerik sürümü, medya ve yayından kaldırma
+
+- Yayın adayı değiştirilemez içerik sürümü, kaynak referansları ve içerik hash'i taşır. İnsan onayı bu adayın kimliğine ve hash'ine bağlanır; publisher yalnız aynı onaylı içeriği yayınlar, yayın sırasında yeniden üretim yapmaz.
+- Aday metin/medya değişirse eski onay yeni sürüm için geçerli olmaz. Yayın transaction'ı adayın onayını, kaynak uygunluğunu ve geri çekilmemiş olduğunu tekrar doğrular.
+- Contributor taslakları ve inceleme bekleyen medya private Storage alanında tutulur. Erişim sahiplik/admin yetkisiyle kontrol edilir; gerekiyorsa kısa ömürlü signed URL kullanılır. Yayına yalnız doğrulanmış ve onaylı medya sürümü alınır.
+- Dosya boyutu, gerçek içerik türü ve izin verilen formatlar doğrulanır; contributor onaylı nesneyi aynı yol üzerinden değiştiremez.
+- Yayından kaldırma; projection, uygulama önbelleği ve yönetilen medya erişimini birlikte ele alır. Eski publisher retry'ı kaldırılan sürümü yeniden yayınlayamaz. Daha önce ziyaretçilerce indirilmiş kopyaların veya dış önbelleklerin geri alınabileceği garanti edilmez.
 
 ### İçerik politikası
 
@@ -631,6 +715,17 @@ Supabase Queues üzerinde rol bazlı Python worker'lar ve provider-bağımsız q
 - Domain handler'ları `JobQueue` adapter sınırının arkasında kalır; `pgmq` ayrıntılarına bağlanmaz.
 - Kesin olarak job üretmesi gereken state değişimleri queue mesajıyla aynı transaction'da veya transactional outbox ile güvence altına alınır.
 
+#### Teslim, deneme ve tamamlanma protokolü
+
+- Queue teslimi ile domain sonucunun tekilleştirilmesi ayrı sorumluluklardır. Visibility süresi dolunca yeniden teslim beklenir; uygulama sonuçların en fazla bir kez uygulanmasını unique anahtar ve transaction ile sağlar.
+- Domain etkisi kimliği retry boyunca sabittir; `attempt_id` her denemede değişir. Örneğin scene/processing sürümü/etki türü/katılımcı kapsamı aynı etkiyi tanımlar; yeni deneme yeni domain etkisi yaratmaz.
+- Worker görünmezlik/lease süresini gerçek zamanla yeniler. İş sahibi deneme ve artan sahiplik nesli sonuç commit'inde doğrulanır; lease kaybeden veya geç kalan worker sonucu uygulayamaz. Worker heartbeat tek başına iş sahipliği kanıtı değildir.
+- İşlem sırası: işi al, geçerliliği doğrula, kısa transaction ile gerekli state/sahipliği oku veya ayır, transaction dışında üret, kısa transaction ile sonucu ve outbox'ı commit et, ardından queue mesajını onayla/arşivle. İş öncesinde kuyruktan kalıcı silme yapılmaz.
+- Commit sonrası queue onayından önce crash olursa tekrar teslim edilen iş mevcut sonucu tanır ve domain etkisini yeniden üretmeden tamamlanır. Commit öncesi crash durumunda kaydedilmiş geçerli checkpoint'ten devam edilir; kaydedilmemiş üretim tekrar yapılabilir.
+- Transient hata için sınırlı backoff/retry uygulanır; kalıcı validation/policy hatası veya deneme sınırının dolması quarantine/dead-letter durumuna gider. Manuel retry da aynı domain tekilleştirme kurallarına uyar.
+- İş sözleşmesi gerekli state/definition sürümlerini, iptal durumunu ve zaman duyarlı işlerde geçerlilik zamanını içerir. Başlangıçta ve sonuç commit'inde yeniden kontrol yapılır. AK-002 uyarınca eski sahne adayları yeniden değerlendirilir, birikmiş rutin işleri birleştirilir; kalıcı mesaj ve sonuç uygulama işleri korunur. İş türüne özgü geçerlilik süreleri yapılandırılır.
+- Reservation, bütçe ve başarısız processing kayıtlarını tarayan idempotent recovery işi bulunur. UI başarısız/inceleme bekleyen akışı görünür kılar; bekleyen iş sessizce başarıya çevrilmez.
+
 ### Alt karar 8 — Gözlemlenebilirlik: KABUL
 
 Katmanlı ve aşamalı gözlemlenebilirlik kabul edilmiştir.
@@ -654,6 +749,17 @@ Admin chat için private Supabase Realtime Broadcast üzerinden ephemeral token 
 - Stream koparsa LLM işi devam eder; UI yeniden bağlandığında kesin mesajı API/PostgreSQL'den alır.
 - Realtime kullanılamazsa job polling ve final mesaj sorgusu fallback olur.
 - Contributor ve anonymous roller admin chat kanallarına katılamaz; kanal adı tek başına yetki sağlamaz ve Realtime Authorization/RLS uygulanır.
+
+#### Stream sözleşmesi ve hata davranışı
+
+- Her stream olayı `conversation_id`, `message_id`, `attempt_id`, artan `sequence` ve olay türü taşır. UI tekrarları eler; farklı üretim denemelerinin parçalarını birleştirmez.
+- Kalıcı job/message durumu en az `queued`, `generating`, `completed`, `failed` ve `cancelled` ayrımını yapar. Token parçaları geçici ön izlemedir; canonical mesaj veya domain etkisi değildir.
+- Yeniden bağlanan UI kesin mesajı ve güncel job/attempt durumunu API'den okur. İş sürüyorsa eksik parçaların geri getirileceği vaat edilmez; eksik ön izleme sıfırlanabilir ve final mesaj/polling beklenir.
+- Worker çökerse UI'da yarım ön izleme tamamlanmış cevap olarak gösterilmez. Yeni deneme ayrı attempt olarak başlar. Final mesajı kaydedilmiş iş yalnız final bildirim kayboldu diye yeniden üretilmez.
+- Canonical final mesaj, generation sonucu ve gerekli domain processing outbox kaydı birlikte commit edilir. Mesajın tamamlanması ile memory/affect processing'in tamamlanması ayrı izlenir; sonraki etkileşim gerekli state etkileri uygulanmadan başlamaz.
+- GPU worker stream'i kendi sınırlı servis kimliğiyle yetkili yayın adapter'ına iletir. Admin read-only, worker ilgili topic'lerde write yetkilidir; browser veya yerel worker'a geniş `service_role` anahtarı verilmesi çözüm olarak kullanılmaz.
+- Realtime bağlantısında izinler önbelleğe alınabildiği için rol/session iptali yalnız politika değişimine bırakılmaz. Yeni üretim ve yayın sırasında yetki tekrar doğrulanır; iptal edilen erişime yayın kesilir, kanal/oturum sonlandırma ve token yenileme davranışı test edilir.
+- Token başına zorunlu ağ mesajı yerine sınırlı aralık/boyutta chunk yayınlanabilir; final mesaj canonical kaynak olmaya devam eder.
 
 ### Alt karar 10 — Deployment paketleme: KABUL
 
@@ -874,8 +980,9 @@ Maksimum 50 karakteri destekleyecek mimari korunurken ilk test dünyası 3–5 a
 - Tek dünya, merkezî world clock, temel konumlar ve character presence
 - İki karakterli autonomous scene, kurallı aday puanı, bütçe/cooldown ve turn-based scene engine
 - Core, episodic ve temel semantic memory; provenance ve scope kontrollü retrieval
-- VAD mood/emotion events ve yönlü relationship snapshot/events
+- VAD (valence/arousal/dominance) mood/emotion events ve yönlü relationship snapshot/events; karaktere özgü baseline'a zamana bağlı dönüş kabul edilmiştir, sayısal aralık ve hızlar senaryo testleriyle kalibre edilir
 - Basit short-term goals ve önemli scene sonrası reflection
+- Sabit temel kişilik/ana değerler üzerinde deneyime bağlı görüş, ilişki ve goal gelişimi; reflection çekirdek kişiliği değiştiremez
 - Public karakter profilleri, konumlar, ilişki açıklamaları ve manuel onaylı scene/timeline özetleri
 - Contributor kredisi yalnız katkıcının tercihine bağlı public projection olarak gösterilir
 - RLS rol testleri, queue worker'ları, idempotency/outbox, heartbeat, log/ops tabloları ve kill switch
@@ -894,18 +1001,37 @@ Maksimum 50 karakteri destekleyecek mimari korunurken ilk test dünyası 3–5 a
 
 #### Tamamlanma ölçütü
 
-Bir contributor karakter tasarlayıp başvurduğunda; World Owner inceleme/revizyon/onay akışını tamamlayıp karakteri aktive edebildiğinde; World Owner karakterle private konuşabildiğinde; karakter başka bir karakterle geçerli autonomous scene yaşayıp iki tarafta farklı memory ve yönlü relationship değişimleri oluşturduğunda; World Owner güvenli özeti public timeline'a yayınlayabildiğinde ve contributor/anonymous kullanıcılar internal state veya chat'e erişemediğinde MVP tamamlanmış sayılır.
+Bir contributor karakter tasarlayıp başvurduğunda; World Owner inceleme/revizyon/onay akışını tamamlayıp karakteri aktive edebildiğinde; World Owner karakterle private konuşabildiğinde; karakter başka bir karakterle geçerli autonomous scene yaşayıp katılımcıya özgü memory ve yönlü relationship değerlendirmeleri oluşturduğunda; World Owner güvenli özeti public timeline'a yayınlayabildiğinde ve contributor/anonymous kullanıcılar internal state veya chat'e erişemediğinde uçtan uca ürün akışı sağlanır. Relationship değerlendirmesi geçerli biçimde sıfır değişimle sonuçlanabilir; sırf etkileşim oldu diye state değişikliği zorlanmaz.
+
+MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları da sağlanır:
+
+- `AK-001`–`AK-004` kararları sonuçlandırılmış ve seçilen davranışlar ilgili akış/testlere işlenmiş olmalıdır.
+- Duplicate job, commit sonrası crash ve eski worker sonucu çift mesaj, memory veya event üretmemelidir. Katılımcı etkileri kısmi uygulanmışken sahne tamamlandı sayılmamalıdır.
+- Worker kesintisi ve tekrar bağlantı, seçilmiş dünya zamanı politikasıyla tutarlı çalışmalı; başarısız işler UI'da görünür ve güvenle yeniden ele alınabilir olmalıdır.
+- AK-002 için gece–öğlen ve çok günlük kesinti senaryolarında dünya saati ilerlemeli, güncel presence/rutinler uzlaştırılmalı, eski sahne kotası birikmemeli ve gerçekleşmemiş konuşma/memory üretilmemelidir. Kesinti öncesi commit edilmiş turn etkileri kaybolmamalı veya çift uygulanmamalıdır.
+- AK-003 için turn üretimi, turn sınırı ve processing sırasında admin mesajı test edilmelidir: durma isteğinden sonra yeni sahne turn'ü başlamamalı, geçerli transcript etkileri bir kez uygulanmalı ve admin yanıtı güncel state ile üretilmelidir. Timeout/processing hatası görünür olmalı; henüz başlamamış sahne için deneyim uydurulmamalıdır.
+- Askıya alma, iptal, yetki değişimi ve onay geri çekme sonrası eski işler izinsiz state/yayın üretememelidir.
+- Definition revizyonu geçmiş olayları sessizce değiştirmemeli; yeni yaşam olayı ile veri hatası düzeltmesi ayrı sınanmalıdır. Düzeltmede kaynak/audit geçmişi korunmalı, geçersizleşmiş bilgi güncel context veya eski onayla public projection'a geri dönmemelidir.
+- Mood testlerinde yeni etki olmadığında karaktere özgü baseline'a yaklaşma, küçük/güçlü olayların farklı etki süreleri ve çevrimdışı zaman uyarlaması doğrulanmalıdır. Aynı olay/zaman aralığı tekrar işlendiğinde çift etki oluşmamalı; sakinleşme memory veya ilişki güvenini sıfırlamamalıdır.
+- Memory testlerinde önemli deneyimin korunması, gündelik ayrıntının önceliğinin azalması ve ilgili eski kaydın konu yeniden açıldığında bulunabilmesi doğrulanmalıdır. Consolidation kaynak/gizlilik/iddia ayrımını korumalı; dayanağı olmayan ayrıntı gerçek memory'ye dönüşmemeli ve decay fiziksel silme yapmamalıdır.
+- Kişilik testlerinde tekrarlı chat/reflection temel personality, temperament, ana değerler veya bunlardan türetilen baseline'ı otomatik değiştirmemelidir. Buna karşılık kaynak deneyime dayanan ilişki/görüş/goal değişimleri mümkün olmalı; kişiye özgü yakınlık genel kişilik dönüşümü olarak kaydedilmemelidir.
+- Contributor A, contributor B'nin taslağını veya medyasını görememeli/değiştirememeli; aynı pooled bağlantının tekrar kullanımı kimlik sızdırmamalıdır. Anonymous/contributor private chat stream'ine erişememelidir.
+- Yasak bilgi doğrudan memory'den veya türetilmiş reflection/summary/goal üzerinden alıcı context'ine girmemeli; ortak transcript içsel intent/affect alanlarını taşımamalıdır. Public projection ve medya yalnız onaylanan sürümü sunmalıdır.
+- Bozuk JSON, geçersiz domain action, timeout ve retry sınırı deterministic hata/quarantine akışına gitmeli; başarısızlık uydurma başarılı sonuçla örtülmemelidir.
+- Model benchmark'ında Türkçe karakter tutarlılığı, provenance koruma, retrieval başarısı, şema başarısı, ilk token/toplam gecikme ve uzun süreli kararlılık ölçülmelidir. Sayısal kabul eşikleri benchmark sonrası, MVP kabul değerlendirmesinden önce sürümlü eval planında sabitlenmelidir; yalnız şema geçmesi davranış kalitesi sayılmaz.
+- Backup/restore ve recovery tatbikatı uygulanmalı; bu belgede testlerin tanımlanmış olması testlerin geçtiği anlamına gelmemelidir.
 
 ## Son İnceleme
 
-**Durum:** `TAMAMLANDI`  
+**Durum:** `KABUL` — Teknik çapraz inceleme düzeltmeleri ve AK-001–AK-004 kararları işlendi; karar seti kullanıcının bütünsel gözden geçirmesine hazır.
+
 **Tarih:** 2026-09-21
 
 ### Sistem invariant'ları
 
 Aşağıdaki kurallar bütün modül ve fazlarda geçerlidir:
 
-1. Yalnız World Owner aktif AI karakterlerle konuşabilir.
+1. İnsan kullanıcılar arasında yalnız World Owner aktif AI karakterlerle konuşabilir; AI karakterler dünya kuralları içinde birbirleriyle konuşabilir.
 2. Contributor yalnız taslak, başvuru ve revizyon önerir; canlı karakter state'ini doğrudan değiştiremez.
 3. AI karakter yalnız gerçekten erişebildiği bilgi ve memory kapsamıyla hareket eder.
 4. LLM kalıcı state'i, domain action'ı veya yayın kararını doğrudan uygulayamaz; yalnız yapılandırılmış öneri üretir.
@@ -917,14 +1043,43 @@ Aşağıdaki kurallar bütün modül ve fazlarda geçerlidir:
 10. Modelden gizli chain-of-thought istenmez veya saklanmaz; yalnız gerekli kısa gerekçe, sinyal ve yapılandırılmış karar verisi tutulur.
 11. Autonomous üretim bütçe, cooldown, concurrency ve kill switch sınırları olmadan çalışmaz.
 12. Maksimum aktif karakter sayısı yapılandırılabilir sistem limitiyle 50'yi aşamaz; limit değişikliği World Owner audit event'i üretir.
+13. Bir işin kuyruğa alınması veya geçmişte onaylanması güncel çalışma yetkisi sayılmaz; state sürümü, lifecycle, iptal ve deneme sahipliği sonuç uygulamadan önce doğrulanır.
+14. Bilgi dönüşümü erişim/paylaşım kapsamını kendiliğinden genişletemez; yayın onayı yalnız incelenen değiştirilemez içerik sürümü için geçerlidir.
 
 ### Tutarlılık düzeltmeleri
 
-- 3–5 karakterlik MVP için autonomous scene hedefi 2–4/gün olarak düzeltildi. 10–15/gün hedefi daha fazla aktif karakter bulunan ölçek aşamasına taşındı.
+- Karakter başına günlük 2 katılım sınırıyla 3 karakter için autonomous scene hedefi 2–3/gün, 4–5 karakter için 2–4/gün olarak düzeltildi. 10–15/gün hedefi daha fazla aktif karakter bulunan ölçek aşamasındadır.
 - Obsidian mirror yeni ürün modelinin MVP tamamlanma ölçütü için gerekli değildir ve sonraki faza alındı.
 - Full hierarchical agency mimarisi korunurken MVP yalnız basit short-term goals ve önemli olay reflection'ı uygular.
 - Modelin desteklediği teorik context uzunluğu kapasite kabul edilmez; gerçek VRAM ve scene benchmark'ı belirleyicidir.
 - Public projection ile world-internal `world` görünürlüğünün farklı kavramlar olduğu teyit edildi.
+- `internal` insan erişimi ile AI bilgi kapsamı ayrıldı; `secret` epistemik tür yerine ayrı hassasiyet niteliği olarak tanımlandı.
+- Deployment diyagramındaki kesin Hermes adı kaldırıldı; model seçiminin benchmark'a bağlı olduğu korundu.
+- VAD'nin mevcut MVP tercihi korundu; AK-004 mood alt kararıyla karaktere özgü baseline, zamana bağlı dönüş ve çevrimdışı süre davranışı kabul edildi. Sayısal aralık/katsayı/hızlar uygulama sırasında senaryo testleriyle kalibre edilecektir.
+- Şema doğrulama, RLS, idempotency ve insan onayı ifadelerinin hangi transaction, kimlik, sürüm ve recovery kurallarıyla uygulanacağı ilgili bölümlere eklendi.
+
+### Kullanıcıyla ele alınan ürün kararları
+
+AK-001, AK-002, AK-003 ve AK-004 kullanıcıyla tek tek değerlendirilerek kabul edilmiştir. Bu dört başlık altında açık ürün davranışı kararı kalmamıştır. Aşağıdaki özet bütünsel gözden geçirme içindir; ertelenmiş model/sağlayıcı seçimleri ve sonraki faz özellikleri ayrıca listelenir. Karar onayı, uygulama veya testlerin tamamlandığı anlamına gelmez.
+
+| Kimlik | Konu | Karar / açık kapsam | Bağlı bölümler / kararın gerekli olduğu aşama |
+| --- | --- | --- | --- |
+| AK-001 | World Owner'ın dünya içindeki kimliği ve sohbet etkisi — KABUL | Ayrı yönetici yetkileriyle kalıcı insan katılımcı; karaktere özgü memory ve insana yönelik ilişki; sohbet dünya içi deneyimdir, yönetici emri değildir. Özel sohbet bilgisi varsayılan olarak aralarında kalır; yalnız açık, bilgi/alıcı kapsamlı izinle başka karaktere aktarılabilir. | Aktörler, WADR-004/007/008/011; kimlik ve paylaşım davranışı kararlaştırıldı |
+| AK-002 | Çevrimdışı zaman ve geri dönüş — KABUL | Dünya saati ilerler; AI etkileşimleri bekler. Dönüşte güncel konum/rutinler uzlaştırılır, eski sahne adayları yeniden değerlendirilir; gerçekleşmemiş konuşmalar geçmişte yaşanmış gibi üretilmez. Kalıcı mesaj/sonuçlar korunur; rutin işler birleştirilir. | WADR-004/005/011; çevrimdışı zaman ve geri dönüş davranışı kararlaştırıldı |
+| AK-003 | Devam eden sahneye karşı admin sohbeti — KABUL | Mevcut turn tamamlanır, yeni turn başlatılmadan sahne kesintili olarak sonlandırılır; yaşanmış etkileşimin etkileri kaydedilir, sonra admin chat güncel state ile başlar. UI bekleme durumunu gösterir; yarım kalan konu ileride yeni sahnede ele alınabilir. | WADR-005/006/011; güvenli sonlandırma ve rezervasyon devri kararlaştırıldı |
+| AK-004 | Karakter değişimi, mood ve hafıza davranışı — KABUL | Geçmiş korunur; yaşam değişiklikleri yeni olaylarla, hatalar onaylı düzeltmeyle ele alınır. Mood baseline'a yaklaşır; memory/güven ayrıdır. Önemli anılar korunur, gündelik ayrıntıların önceliği azalır; özetler kaynak/gizliliği korur. MVP'de temel kişilik ve ana değerler sabit; görüş/ilişki/goal gelişebilir. Yavaş temel kişilik gelişimi sonraki fazda, büyük dönüşümler Owner onaylıdır. | WADR-001/008/009/014; bütün alt kararlar tamamlandı |
+
+Teknik doğrulama, erişim kısıtları ve eski sonuçları reddetme kuralları ürün kararlarının yerine geçmez. Admin GPU önceliği AK-003'teki güvenli turn/processing sınırına uyar. Durable queue, kabul edilen AK-002 politikasını uygular; geçmiş olayları koşulsuz oynatma yetkisi vermez.
+
+### Teknik doğrulama kaynakları
+
+Çapraz incelemede aşağıdaki resmî kaynaklar kullanılmıştır. Uygulama aşamasında seçilen sürümlere göre bağlantı/pooler, API ve yetkilendirme davranışları yeniden doğrulanacaktır.
+
+- [PostgREST transaction ve request bağlamı](https://postgrest.org/en/latest/references/transactions.html): request claim'lerinin transaction kapsamında taşınması; doğrudan SQL bağlantısının ayrı bağlam gerektirmesinin dayanağı.
+- [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html): tablo sahibi ve `BYPASSRLS` istisnaları; gerçek runtime rolleriyle test gereksinimi.
+- [Supabase Queues / PGMQ](https://supabase.com/docs/guides/queues/pgmq): visibility süresi, yeniden teslim ve archive işlemleri; domain idempotency'nin uygulama sorumluluğu olması.
+- [Supabase Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization): private kanal izinleri ve bağlantı süresince yetki önbelleği.
+- [Supabase Storage bucket erişimi](https://supabase.com/docs/guides/storage/buckets/fundamentals): private/public medya ayrımı ve public nesnelerin URL ile okunabilmesi.
 
 ### Ertelenmiş önemli kararlar
 
@@ -985,3 +1140,12 @@ Her aşama fake/deterministic model adapter'ıyla test edilebilir olmalıdır. G
 | 2026-09-21 | WADR-013 yapılandırılmış monorepo, modüler monolith ve üretilmiş API sözleşmeleriyle kabul edildi; WADR-014 tartışmaya açıldı. |
 | 2026-09-21 | WADR-014 3–5 karakterle başlayan uçtan uca dikey MVP olarak kabul edildi; karar seti son incelemeye alındı. |
 | 2026-09-21 | Son inceleme tamamlandı; MVP scene bütçesi düzeltildi, invariant'lar, ertelenmiş kararlar, riskler ve sekiz aşamalı uygulama sırası eklendi. |
+| 2026-09-21 | Ayrıntılı çapraz inceleme sonrası teknik yetki, bilgi gizliliği, sürüm/onay, concurrency, queue recovery, streaming ve MVP kabul kuralları netleştirildi. Sahne kotası ve terim tutarsızlıkları düzeltildi. Son inceleme yeniden açıldı; kullanıcıyla sonuçlandırılacak AK-001–AK-004 açık kararları kaydedildi. Yalnız karar belgesi güncellendi; uygulama kodu oluşturulmadı. |
+| 2026-09-21 | AK-001 kapsamında World Owner'ın karakterlerle ilişki kuran dünya içi insan katılımcı olması kabul edildi; yönetici yetkisi, karaktere özgü memory ve insana yönelik ilişki ayrımı işlendi. Sohbet bilgisinin diğer karakterlerle paylaşılma varsayılanı açık bırakıldı. |
+| 2026-09-21 | Özel sohbet bilgisinin varsayılan olarak World Owner ile ilgili karakter arasında kalması ve diğer karakterlere yalnız açık izinle paylaşılması kabul edildi. AK-001 tamamlandı; açık ürün kararı sayısı üçe indi. |
+| 2026-09-21 | AK-002 kabul edildi: çevrimdışıyken dünya saati ilerler, AI etkileşimleri bekler; geri dönüşte güncel rutin/konumlar uzlaştırılır ve eski adaylar değerlendirilir. Gerçekleşmemiş geçmiş konuşmalar üretilmez. Açık ürün kararı sayısı ikiye indi. |
+| 2026-09-21 | AK-003 kabul edildi: admin mesajında mevcut turn tamamlanır, sahne güvenli biçimde sonlandırılır ve etkileri kaydedildikten sonra chat başlar. Bekleme/hata görünürlüğü ve sonraki sahnede devam sınırı işlendi. Yalnız AK-004 açık kaldı. |
+| 2026-09-21 | AK-004 geçmiş/revizyon alt kararı kabul edildi: yaşanmış geçmiş korunur, anlamlı yaşam değişiklikleri yeni olaylarla gerçekleşir; gerçek hatalar World Owner onaylı, etkileri incelenmiş ve audit kayıtlı düzeltmeyle ele alınır. Mood, hafıza ve deneyimlerle kişilik gelişimi alt kararları açık kaldı. |
+| 2026-09-21 | AK-004 mood alt kararı kabul edildi: olaylarla değişen ruh hâli, çevrimdışı süre dahil zamanla karaktere özgü baseline'a yaklaşır; güçlü etkiler daha uzun sürebilir, hafıza ve ilişki state'i ayrı kalır. Sayısal kalibrasyon testlere bırakıldı; hafıza ve kişilik gelişimi alt kararları açık kaldı. |
+| 2026-09-21 | AK-004 hafıza alt kararı kabul edildi: önemli deneyimler korunur; gündelik ayrıntıların retrieval önceliği zamanla azalır. Unutma fiziksel silme değildir; ilgili eski anılar tekrar hatırlanabilir, özetler kaynak ve gizliliği korur, eksik ayrıntılar uydurulmaz. Yalnız kişilik gelişimi alt kararı açık kaldı. |
+| 2026-09-21 | AK-004 kişilik alt kararı kabul edildi: MVP'de temel kişilik/ana değerler sabit, görüş/ilişki/goal gelişimi mümkündür. Yavaş temel kişilik gelişimi sonraki fazdadır; büyük dönüşümler World Owner onayı gerektirir. AK-001–AK-004 tamamlandı; karar seti bütünsel kullanıcı incelemesine hazırlandı. Kodlama başlatılmadı. |
