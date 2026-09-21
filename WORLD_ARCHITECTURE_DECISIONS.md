@@ -169,7 +169,7 @@ World Owner; karakterlerle chat, moderasyon, internal world state, memory/mood/r
 #### Yayınlanmayacak içerik
 
 - Ham veya yayınlanmamış konuşma kayıtları
-- Internal reasoning ve private/internal memory
+- Karakterlerin private intent, affect sinyali ve reflection kayıtları ile private/internal memory (ham model akıl yürütmesi sistem invariant'ı 10 gereği zaten istenmez ve saklanmaz)
 - Prompt, model ve güvenlik ayarları
 - Ayrıntılı mood/relationship state'i
 - Moderasyon notları ve katkıcı kişisel bilgileri
