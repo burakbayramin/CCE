@@ -24,6 +24,7 @@ Cognitive Character Engine, proje yöneticisinin AI karakterlerle konuşabildiğ
 - World Owner, karakterlerle ilişki kuran kalıcı bir insan katılımcı olarak dünyada yer alır. Yönetici yetkileri ile bu dünya içi kimlik ayrı kavramlardır; ayrı bir giriş hesabı gerektirmez.
 - Karakterler aynı insanı tanır; her karakterin onunla yaşadığı deneyimlere ait memory'si ve ona yönelik bağımsız ilişki state'i olur. Bir karakterin öğrendikleri diğerlerine otomatik aktarılmaz.
 - Sohbetler ilgili karakterin hafıza, mood ve ilişki değerlendirmesine konu olan dünya içi deneyimlerdir. World Owner'ın bir sözü, sırf yönetici tarafından söylendiği için dünya gerçeği veya başka karakterin state'ini değiştiren komut sayılmaz.
+- Admin mesajının sistemce kabul edilmesi ile karaktere teslim edilmesi ayrıdır. Mesaj, WADR-011'deki kalıcı teslim sınırında karakterin deneyimi olur; henüz teslim edilmemiş mesaj karakterin bildiği bilgi sayılmaz.
 - Yönetim işlemleri sohbetten ayrı komut akışında yürütülür. Bir yönetim işlemi, ayrıca yetkili bir dünya olayı/gözlem oluşturulmadıkça karakterlere otomatik bilgi kazandırmaz.
 - İnsan katılımcı AI olarak simüle edilmez; engine onun adına konuşma veya öznel duygu üretmez. İnsan kimliği, en fazla 50 aktif AI karakter sınırına dahil değildir.
 - Özel sohbetten öğrenilen bilgi varsayılan olarak World Owner ile ilgili karakter arasında kalır. Diğer karakterlere yalnız World Owner'ın ilgili bilgi ve alıcı kapsamı için açık izniyle aktarılabilir (`AK-001`: KABUL). Mevcut private erişim ve public yayın yasakları geçerliliğini korur.
@@ -844,7 +845,7 @@ Katmanlı ve aşamalı gözlemlenebilirlik kabul edilmiştir.
 
 Admin chat için private Supabase Realtime Broadcast üzerinden ephemeral token stream'i ve PostgreSQL'de kalıcı final mesaj modeli kabul edilmiştir.
 
-- FastAPI admin mesajını ve idempotent chat job'ını güvenilir biçimde oluşturur.
+- FastAPI admin mesajını ve idempotent chat job'ını güvenilir biçimde oluşturur; bu kayıt mesajın sistemce kabulüdür, karaktere teslimi veya yanıtı değildir.
 - Admin Studio konuşmaya özel private, yalnız-okuma Broadcast kanalına abone olur.
 - Yerel GPU worker token delta ve durum olaylarını yayınlar; prompt, memory veya gizli context payload'a eklenmez.
 - Tam model cevabı yalnızca tamamlandığında kalıcı message kaydı olarak yazılır ve source of truth olur.
@@ -852,13 +853,22 @@ Admin chat için private Supabase Realtime Broadcast üzerinden ephemeral token 
 - Realtime kullanılamazsa job polling ve final mesaj sorgusu fallback olur.
 - Contributor ve anonymous roller admin chat kanallarına katılamaz; kanal adı tek başına yetki sağlamaz ve Realtime Authorization/RLS uygulanır.
 
+#### Admin mesajının kabul, teslim ve deneyim sınırı
+
+- Mesajın kabul zamanı gerçek zamanla kaydedilir. Yerel worker çevrimdışıyken veya AK-003 sahne sonuçlandırması beklenirken mesaj teslim edilmemiş olarak kalır; karakterin context'ine, memory'sine veya affect/relationship etkilerine girmez.
+- Karakterin etkileşim rezervasyonu alınıp önceki gerekli processing tamamlandıktan sonra güncel actor yetkisi, lifecycle ve iptal durumu doğrulanır. Kısa bir transaction, mesajın karaktere teslim kaydını, dünya zamanındaki `delivered_at` değerini ve gelen mesaja ait domain processing outbox kaydını birlikte commit eder. Bu commit, uygulamanın canonical deneyim sınırıdır; LLM çağrısının başarılı olmasına bağlı değildir. Retry teslim zamanını değiştirmez veya yeni bir teslim üretmez.
+- Gelen mesajın memory/relationship/affect/goal değerlendirmesi yanıttan bağımsızdır; geçerli sıfır değişim de sonuçtur. Gerekli etkiler atomik ve idempotent uygulanmadan yanıt üretimi başlamaz. Yanıt context'i teslim edilmiş mesajı ve uygulanmış etkilerini içerir. Yanıt üretimi sonradan başarısız veya iptal olsa da teslim edilmiş mesajın deneyimi korunur; henüz teslim edilmeden iptal edilen mesaj deneyim üretmez.
+- Yanıtın canonical final mesaj olarak commit edilmesi ayrı deneyim sınırıdır. Gelen mesaj ve yanıt etkileri ayrı, kaynak mesaj kimliğine bağlı domain etki kimlikleriyle tekilleştirilir; yanıt processing'i gelen mesaj için uygulanmış etkileri yeniden uygulamaz. Transcript context olarak kullanılabilir, fakat her sonuç yalnız kendi henüz işlenmemiş kaynak kapsamına etki yazar.
+- Aynı karaktere kabul edilen mesajlar kalıcı sıra numarasıyla sıralanır. Aktif yanıtın girdi mesajı/transcript sınırı sabitlenir; sonradan gelen mesaj bu üretime sessizce eklenmez. Sonraki mesajın teslimi, önceki yanıt işi terminal duruma ve teslim edilmiş girdinin/varsa final yanıtın gerekli processing'i başarılı sonuca ulaşana kadar bekler. Yanıt işi başarısız veya iptal olmuşsa, mevcut deneyimin processing'i tamamlandıktan sonra rezervasyon serbest bırakılabilir; sonraki etkileşim başlamış bir konuşmada eski yanıt işi manuel retry ile araya sokulmaz, yeni yanıt isteği güncel context ile ele alınır.
+- UI kabul/teslim durumunu, yanıt üretim durumunu ve processing hatasını ayrı gösterir. Teslim edilmiş girdinin processing hatası WADR-011'in recovery/manuel retry protokolüyle giderilir; bu sırada sonraki etkileşim başlatılmaz. Teslim sonrası askıya alma/arşivlemede WADR-001'in mevcut deneyimi sonuçlandırma yetkisi geçerlidir, yeni yanıt üretimi engellenir.
+
 #### Stream sözleşmesi ve hata davranışı
 
 - Her stream olayı `conversation_id`, `message_id`, `attempt_id`, artan `sequence` ve olay türü taşır. UI tekrarları eler; farklı üretim denemelerinin parçalarını birleştirmez.
 - Kalıcı job/message durumu en az `queued`, `generating`, `completed`, `failed` ve `cancelled` ayrımını yapar. Token parçaları geçici ön izlemedir; canonical mesaj veya domain etkisi değildir.
 - Yeniden bağlanan UI kesin mesajı ve güncel job/attempt durumunu API'den okur. İş sürüyorsa eksik parçaların geri getirileceği vaat edilmez; eksik ön izleme sıfırlanabilir ve final mesaj/polling beklenir.
 - Worker çökerse UI'da yarım ön izleme tamamlanmış cevap olarak gösterilmez. Yeni deneme ayrı attempt olarak başlar. Final mesajı kaydedilmiş iş yalnız final bildirim kayboldu diye yeniden üretilmez.
-- Canonical final mesaj, generation sonucu ve gerekli domain processing outbox kaydı birlikte commit edilir. Mesajın tamamlanması ile memory/affect processing'in tamamlanması ayrı izlenir; sonraki etkileşim gerekli state etkileri uygulanmadan başlamaz.
+- Canonical final yanıt mesajı, generation sonucu ve yalnız bu yanıtın gerekli domain processing outbox kaydı birlikte commit edilir. Yanıtın tamamlanması ile processing'in tamamlanması ayrı izlenir; sonraki etkileşim gerekli state etkileri uygulanmadan başlamaz. Gelen mesajın ayrı teslim/processing akışı yukarıdaki sözleşmeye tabidir.
 - GPU worker stream'i kendi sınırlı servis kimliğiyle yetkili yayın adapter'ına iletir. Admin read-only, worker ilgili topic'lerde write yetkilidir; browser veya yerel worker'a geniş `service_role` anahtarı verilmesi çözüm olarak kullanılmaz.
 - Realtime bağlantısında izinler önbelleğe alınabildiği için rol/session iptali yalnız politika değişimine bırakılmaz. Yeni üretim ve yayın sırasında yetki tekrar doğrulanır; iptal edilen erişime yayın kesilir, kanal/oturum sonlandırma ve token yenileme davranışı test edilir.
 - Token başına zorunlu ağ mesajı yerine sınırlı aralık/boyutta chunk yayınlanabilir; final mesaj canonical kaynak olmaya devam eder.
@@ -1111,6 +1121,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - `AK-001`–`AK-004` kararları sonuçlandırılmış ve seçilen davranışlar ilgili akış/testlere işlenmiş olmalıdır.
 - Duplicate job, commit sonrası crash ve eski worker sonucu çift mesaj, memory veya event üretmemelidir. Katılımcı etkileri kısmi uygulanmışken sahne tamamlandı sayılmamalıdır.
 - Worker kesintisi ve tekrar bağlantı, seçilmiş dünya zamanı politikasıyla tutarlı çalışmalı; başarısız işler UI'da görünür ve güvenle yeniden ele alınabilir olmalıdır.
+- Admin chat'te kabulden sonra teslimden önce kesinti/iptal deneyim üretmemeli; teslim transaction'ından sonra crash veya yanıt hatası, gelen mesajın etkilerini kaybettirmemeli veya çift uygulamamalıdır. Teslim zamanı retry ile değişmemeli; yanıt processing'i girdinin etkilerini tekrarlamamalı, peş peşe mesajlar kalıcı sırayla ve güncel state ile işlenmelidir.
 - AK-002 için gece–öğlen ve çok günlük kesinti senaryolarında dünya saati ilerlemeli, güncel presence/rutinler uzlaştırılmalı, eski sahne kotası birikmemeli ve gerçekleşmemiş konuşma/memory üretilmemelidir. Kesinti öncesi commit edilmiş turn etkileri kaybolmamalı veya çift uygulanmamalıdır.
 - AK-003 için turn üretimi, turn sınırı ve processing sırasında admin mesajı test edilmelidir: durma isteğinden sonra yeni sahne turn'ü başlamamalı, geçerli transcript etkileri bir kez uygulanmalı ve admin yanıtı güncel state ile üretilmelidir. Timeout/processing hatası görünür olmalı; henüz başlamamış sahne için deneyim uydurulmamalıdır.
 - `INTERRUPTED` sahnede processing denemeleri tükendiğinde manuel retry sahneyi yeniden açmamalı; aynı transcript etkilerini en fazla bir kez uygulamalı ve bekleyen admin chat'e rezervasyon ancak başarılı processing sonrasında devredilmelidir.
