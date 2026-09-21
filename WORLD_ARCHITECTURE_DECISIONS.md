@@ -782,7 +782,7 @@ Supabase Queues üzerinde rol bazlı Python worker'lar ve provider-bağımsız q
 
 - GPU worker LLM ağırlıklı işleri başlangıçta concurrency 1 ile yürütür.
 - CPU worker embedding, deterministik reranking, deduplication ve domain processing işlerini yürütür.
-- Publisher worker onay/yayın projection'ları, Realtime bildirimleri ve Obsidian mirror işlerini yürütür.
+- Publisher worker onay/yayın projection'ları ve Realtime bildirimlerini yürütür. Obsidian mirror işleri MVP dışındadır (WADR-014); sonraki fazda bu role eklenir.
 - Maintenance worker consolidation, retention, integrity ve günlük dünya bakım işlerini yürütür.
 - Roller aynı kod tabanı/container image üzerinde farklı başlangıç komutlarıyla çalışabilir; MVP'de düşük hacimli roller proses olarak birleştirilebilir.
 - Worker'lar sürümlü payload, idempotency, visibility/lease, heartbeat, retry, quarantine/dead-letter ve graceful shutdown kurallarına uyar.
@@ -949,8 +949,6 @@ cognitive-character-engine/
 ├── infrastructure/
 │   ├── docker/
 │   └── compose/
-├── obsidian/
-│   └── templates/
 ├── docs/
 │   ├── architecture/
 │   ├── decisions/
@@ -961,7 +959,7 @@ cognitive-character-engine/
 
 - Python bağımlılıkları `uv` ve `pyproject.toml`, frontend bağımlılıkları `pnpm` ve lockfile ile yönetilir.
 - Model dosyaları, runtime cache, secret'lar ve generated Obsidian vault içeriği Git'e eklenmez.
-- Boş klasör ve soyutlama önceden topluca üretilmez; sınırlar gerçek özelliklerle birlikte oluşturulur.
+- Boş klasör ve soyutlama önceden topluca üretilmez; sınırlar gerçek özelliklerle birlikte oluşturulur. `obsidian/` klasörü, mirror ve authoring/import akışı başladığında gerçek içerikle birlikte oluşturulur.
 
 ### Backend yapısı
 
