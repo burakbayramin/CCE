@@ -384,7 +384,8 @@ Diğer sonlar: CANCELLED, INTERRUPTED, FAILED (aşağıdaki tabloya göre)
 - `CANCELLED` yalnız hiç commit edilmiş turn yokken kullanılır; deneyim, memory veya relationship etkisi üretmez. Hiç turn commit edilmeden `RUNNING` durumunda dışarıdan kesilen sahne de `CANCELLED` olur.
 - `INTERRUPTED` sahnede en az bir commit edilmiş turn vardır. Bu prefix'in domain etkileri WADR-011'deki idempotent sonuç protokolüyle en fazla bir kez uygulanır. Sahne `COMPLETED` sayılmaz. Processing durumu `scene_processing_runs` içinde ayrıca izlenir ve rezervasyon, bu processing başarıyla bitince bekleyen admin chat'e devredilir.
 - `FAILED` operasyonel hatadır ve başarı anlamına gelmez. Recovery işi tarafından taranır, UI'da görünür kalır, manuel retry aynı domain tekilleştirme kurallarına uyar.
-- `COMPLETED`, `INTERRUPTED` ve `CANCELLED` terminal durumlardır. Yalnız `FAILED` manuel retry ile yeniden ele alınabilir.
+- `COMPLETED`, `INTERRUPTED` ve `CANCELLED` scene için terminal durumlardır. Scene yaşam döngüsünde yalnız `FAILED` manuel retry ile yeniden ele alınabilir. `INTERRUPTED` sahnenin başarısız veya quarantine'e alınmış sonuç processing'i ise inceleme ve gerekli düzeltme sonrasında, scene durumu değiştirilmeden ayrı olarak manuel retry edilebilir.
+- Processing retry'ı `scene_processing_runs` içinde yeni deneme olarak izlenir; domain etki kimliği ve commit edilmiş transcript sınırı sabit kalır, `attempt_id` yenilenir. Başarılı sonuç tekrar uygulanmaz. Bu işlem sahneyi yeniden açmaz, yeni turn üretmez ve `INTERRUPTED` durumunu `COMPLETED` yapmaz; gerekli etkiler commit edilene kadar rezervasyonun bekleyen admin chat'e devri engellenir.
 
 - Planning aşaması katılımcıları, konumu, tetikleyiciyi, amacı, görünürlüğü ve bütçeyi kesinleştirir.
 - Her karakter yalnız kendi personality/goals/memory state'ini, karşı taraf hakkında bildiklerini, kendi yönlü relationship state'ini ve ortak transcript'i görür.
@@ -821,6 +822,7 @@ Supabase Queues üzerinde rol bazlı Python worker'lar ve provider-bağımsız q
 - Transient hata için sınırlı backoff/retry uygulanır; kalıcı validation/policy hatası veya deneme sınırının dolması quarantine/dead-letter durumuna gider. Manuel retry da aynı domain tekilleştirme kurallarına uyar.
 - İş sözleşmesi gerekli state/definition sürümlerini, iptal durumunu ve zaman duyarlı işlerde geçerlilik zamanını içerir. Başlangıçta ve sonuç commit'inde yeniden kontrol yapılır. AK-002 uyarınca eski sahne adayları yeniden değerlendirilir, birikmiş rutin işleri birleştirilir; kalıcı mesaj ve sonuç uygulama işleri korunur. İş türüne özgü geçerlilik süreleri yapılandırılır.
 - Reservation, bütçe ve başarısız processing kayıtlarını tarayan idempotent recovery işi bulunur. UI başarısız/inceleme bekleyen akışı görünür kılar; bekleyen iş sessizce başarıya çevrilmez.
+- Recovery taraması terminal `INTERRUPTED` sahnelerin tamamlanmamış sonuç processing'ini de kapsar. UI sahnenin kesinti durumunu ve processing hatasını ayrı gösterir; deneme sınırı dolduğunda veya çıktı quarantine'e alındığında WADR-006'daki inceleme/manuel retry akışı kullanılır.
 
 ### Alt karar 8 — Gözlemlenebilirlik: KABUL
 
@@ -1107,6 +1109,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - Worker kesintisi ve tekrar bağlantı, seçilmiş dünya zamanı politikasıyla tutarlı çalışmalı; başarısız işler UI'da görünür ve güvenle yeniden ele alınabilir olmalıdır.
 - AK-002 için gece–öğlen ve çok günlük kesinti senaryolarında dünya saati ilerlemeli, güncel presence/rutinler uzlaştırılmalı, eski sahne kotası birikmemeli ve gerçekleşmemiş konuşma/memory üretilmemelidir. Kesinti öncesi commit edilmiş turn etkileri kaybolmamalı veya çift uygulanmamalıdır.
 - AK-003 için turn üretimi, turn sınırı ve processing sırasında admin mesajı test edilmelidir: durma isteğinden sonra yeni sahne turn'ü başlamamalı, geçerli transcript etkileri bir kez uygulanmalı ve admin yanıtı güncel state ile üretilmelidir. Timeout/processing hatası görünür olmalı; henüz başlamamış sahne için deneyim uydurulmamalıdır.
+- `INTERRUPTED` sahnede processing denemeleri tükendiğinde manuel retry sahneyi yeniden açmamalı; aynı transcript etkilerini en fazla bir kez uygulamalı ve bekleyen admin chat'e rezervasyon ancak başarılı processing sonrasında devredilmelidir.
 - Askıya alma, iptal, yetki değişimi ve onay geri çekme sonrası eski işler izinsiz state/yayın üretememelidir.
 - Definition revizyonu geçmiş olayları sessizce değiştirmemeli; yeni yaşam olayı ile veri hatası düzeltmesi ayrı sınanmalıdır. Düzeltmede kaynak/audit geçmişi korunmalı, geçersizleşmiş bilgi güncel context veya eski onayla public projection'a geri dönmemelidir.
 - Mood testlerinde yeni etki olmadığında karaktere özgü baseline'a yaklaşma, küçük/güçlü olayların farklı etki süreleri ve çevrimdışı zaman uyarlaması doğrulanmalıdır. Aynı olay/zaman aralığı tekrar işlendiğinde çift etki oluşmamalı; sakinleşme memory veya ilişki güvenini sıfırlamamalıdır.
