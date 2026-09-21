@@ -749,6 +749,7 @@ Public World Viewer, Contributor Portal ve Admin Studio tek bir Next.js App Rout
 - Supabase Auth için cookie tabanlı SSR yaklaşımı kullanılır; ilgili paket sürümleri kontrollü sabitlenir.
 - Server Components public ve server-rendered okumalar için kullanılır.
 - TanStack Query API/server state'i, React Hook Form katkı formları ve Zustand yalnızca karmaşık geçici UI state'i için kullanılır.
+- Zod yalnız React Hook Form için istemci tarafı form doğrulamasında kullanılır (UX geri bildirimi). API istek/yanıt tipleri OpenAPI'den üretilen client'tan gelir ve elle Zod ile yeniden yazılmaz. Sunucu tarafı doğrulama FastAPI/Pydantic'te kalır; istemci doğrulaması yetkilendirme veya domain invariant'ı sayılmaz.
 - Supabase Realtime izin verilen public/operasyonel projection güncellemelerinde ve aşağıda tanımlanan private admin chat stream'inde kullanılır.
 - FastAPI OpenAPI şemasından TypeScript tipleri/client üretilerek Python ve TypeScript sözleşmelerinin elle çoğaltılması önlenir.
 - Route gizleme yetkilendirme sayılmaz; FastAPI rol ve token'ı, PostgreSQL ise RLS/izinleri ayrıca doğrular.
