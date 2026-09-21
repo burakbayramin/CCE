@@ -513,14 +513,16 @@ Memory kaydı birbirinden bağımsız şu eksenleri taşır:
 
 #### Paylaşılabilirlik
 
-Memory görünürlüğünden ayrı olarak `never`, `owner_only`, `trusted_characters`, `explicit_permission` veya `freely_shareable` gibi paylaşım politikası taşır.
+Memory görünürlüğünden ayrı olarak `never`, `world_owner_only`, `trusted_characters`, `explicit_permission` veya `freely_shareable` gibi paylaşım politikası taşır.
 
-- `never` kapsamındaki bilginin içeriği, izin verilmeyen bir alıcıya konuşma üreten context'in hiçbir bölümüne verilmez; yalnız paylaşım seçeneklerinden çıkarmak yeterli değildir. `owner_only` ve diğer politikalar da gerçek alıcıya göre değerlendirilir.
+`world_owner_only`, bilginin yalnız World Owner'ın dünya içi insan kimliğine yönelik konuşmalarda kullanılabileceği anlamına gelir; başka hiçbir alıcı için context'e girmez. World Owner'ın belirli bir bilgi ve alıcı için verdiği açık izin (AK-001), kaydın politikasını değiştirmez; kaynak mesaja bağlı ayrı bir izin kaydı olarak tutulur.
+
+- `never` kapsamındaki bilginin içeriği, izin verilmeyen bir alıcıya konuşma üreten context'in hiçbir bölümüne verilmez; yalnız paylaşım seçeneklerinden çıkarmak yeterli değildir. `world_owner_only` ve diğer politikalar da gerçek alıcıya göre değerlendirilir.
 - Diğer paylaşımlar relationship, personality, goals, verilmiş sözler ve hassasiyet kuralları altında değerlendirilir.
 
 #### World Owner sohbetlerinin paylaşımı — AK-001: KABUL
 
-- Özel sohbet memory'leri varsayılan `private` erişim ve `owner_only` paylaşım politikası taşır. Karakter bunları kendi deneyimi olarak değerlendirir; başka karaktere yönelik konuşma context'ine izin olmadan taşımaz.
+- Özel sohbet memory'leri varsayılan `private` erişim ve `world_owner_only` paylaşım politikası taşır. Karakter bunları kendi deneyimi olarak değerlendirir; başka karaktere yönelik konuşma context'ine izin olmadan taşımaz.
 - World Owner'ın açık izni, yalnız belirtilen bilgi ve belirtilen alıcılar için paylaşım yetkisi oluşturur. Örneğin “bunu Mira'ya söyleyebilirsin” bütün sohbeti veya bütün karakterleri kapsamaz. Belirsiz izin kapsamı genişletilmez.
 - İzin, ilgili kaynak mesaj ve bilgi/alıcı kapsamıyla kaydedilir; paylaşımda kaynak/provenance korunur. İzin verilmesi bilginin bütün karakterlere otomatik aktarılması değil, uygun bir etkileşimde paylaşılabilmesi demektir.
 - Trust, affection veya başka ilişki eşikleri açık izin yerine geçmez. Türetilmiş memory, reflection ve özetler de aynı sınırı korur; alıcı karaktere aktarım sonraki alıcılara sınırsız paylaşım hakkı vermez.
@@ -1159,7 +1161,7 @@ AK-001, AK-002, AK-003 ve AK-004 kullanıcıyla tek tek değerlendirilerek kabul
 
 | Kimlik | Konu | Karar / açık kapsam | Bağlı bölümler / kararın gerekli olduğu aşama |
 | --- | --- | --- | --- |
-| AK-001 | World Owner'ın dünya içindeki kimliği ve sohbet etkisi — KABUL | Ayrı yönetici yetkileriyle kalıcı insan katılımcı; karaktere özgü memory ve insana yönelik ilişki; sohbet dünya içi deneyimdir, yönetici emri değildir. Özel sohbet bilgisi varsayılan olarak aralarında kalır; yalnız açık, bilgi/alıcı kapsamlı izinle başka karaktere aktarılabilir. | Aktörler, WADR-004/007/008/011; kimlik ve paylaşım davranışı kararlaştırıldı |
+| AK-001 | World Owner'ın dünya içindeki kimliği ve sohbet etkisi — KABUL | Ayrı yönetici yetkileriyle kalıcı insan katılımcı; karaktere özgü memory ve insana yönelik ilişki; sohbet dünya içi deneyimdir, yönetici emri değildir. Özel sohbet bilgisi varsayılan `private` erişim ve `world_owner_only` paylaşım politikası taşır; yalnız açık, bilgi/alıcı kapsamlı izinle başka karaktere aktarılabilir. İzin, politika değiştirilmeden kaynak mesaja bağlı ayrı kayıtta tutulur. | Aktörler, WADR-004/007/008/011; kimlik ve paylaşım davranışı kararlaştırıldı |
 | AK-002 | Çevrimdışı zaman ve geri dönüş — KABUL | Dünya saati ilerler; AI etkileşimleri bekler. Dönüşte güncel konum/rutinler uzlaştırılır, eski sahne adayları yeniden değerlendirilir; gerçekleşmemiş konuşmalar geçmişte yaşanmış gibi üretilmez. Kalıcı mesaj/sonuçlar korunur; rutin işler birleştirilir. | WADR-004/005/011; çevrimdışı zaman ve geri dönüş davranışı kararlaştırıldı |
 | AK-003 | Devam eden sahneye karşı admin sohbeti — KABUL | Mevcut turn tamamlanır, yeni turn başlatılmadan sahne kesintili olarak sonlandırılır; yaşanmış etkileşimin etkileri kaydedilir, sonra admin chat güncel state ile başlar. UI bekleme durumunu gösterir; yarım kalan konu ileride yeni sahnede ele alınabilir. | WADR-005/006/011; güvenli sonlandırma ve rezervasyon devri kararlaştırıldı |
 | AK-004 | Karakter değişimi, mood ve hafıza davranışı — KABUL | Geçmiş korunur; yaşam değişiklikleri yeni olaylarla, hatalar onaylı düzeltmeyle ele alınır. Mood baseline'a yaklaşır; memory/güven ayrıdır. Önemli anılar korunur, gündelik ayrıntıların önceliği azalır; özetler kaynak/gizliliği korur. MVP'de temel kişilik ve ana değerler sabit; görüş/ilişki/goal gelişebilir. Yavaş temel kişilik gelişimi sonraki fazda, büyük dönüşümler Owner onaylıdır. | WADR-001/008/009/014; bütün alt kararlar tamamlandı |
