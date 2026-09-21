@@ -2,7 +2,7 @@
 
 Bu belge, en fazla 50 kalıcı AI karakterin yaşadığı ortak dünya için ürün ve mimari kararlarını tek tek değerlendirmek amacıyla tutulur.
 
-**Belge durumu:** Ana mimari ve AK-001–AK-004 ürün davranışı kararları kabul edilmiştir; teknik çapraz inceleme düzeltmeleri işlenmiştir. Karar seti kullanıcının bütünsel gözden geçirmesine hazırdır. Altı model/sağlayıcı seçimi ilgili uygulama aşamalarına ertelenmiştir; sayısal parametreler testlerle kalibre edilecektir. Bu belge uygulama planıdır; çalışan bir sistem veya tamamlanmış test sonucu değildir. Kararların tamamlanması kodlamaya başlama onayı anlamına gelmez.
+**Belge durumu:** Ana mimari ve AK-001–AK-004 ürün davranışı kararları kabul edilmiştir. Kodlama öncesi son belge kontrolü 2026-09-22 tarihinde tamamlanmış; lifecycle, recovery, mesaj teslimi, moderasyon ve MVP kapsamı düzeltmeleri işlenmiştir. Altı model/sağlayıcı seçimi ilgili uygulama aşamalarına ertelenmiştir; sayısal parametreler testlerle kalibre edilecektir. Bu belge uygulama planıdır; çalışan bir sistem veya tamamlanmış test sonucu değildir. Kararların tamamlanması kodlamaya başlama onayı anlamına gelmez.
 
 ## Ürün Tanımı
 
@@ -1164,9 +1164,9 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 
 ## Son İnceleme
 
-**Durum:** `KABUL` — Teknik çapraz inceleme düzeltmeleri ve AK-001–AK-004 kararları işlendi; karar seti kullanıcının bütünsel gözden geçirmesine hazır.
+**Durum:** `KABUL` — WADR-001–WADR-014, AK-001–AK-004, sistem invariant'ları ve MVP kabul koşulları birlikte kontrol edildi; belirlenen belge tutarsızlıkları giderildi. Uygulama doğrulaması, milestone seçimleri ve çalışma zamanı testleri ilgili geliştirme aşamalarında yapılacaktır.
 
-**Tarih:** 2026-09-21
+**Tarih:** 2026-09-22
 
 ### Sistem invariant'ları
 
@@ -1198,6 +1198,9 @@ Aşağıdaki kurallar bütün modül ve fazlarda geçerlidir:
 - Deployment diyagramındaki kesin Hermes adı kaldırıldı; model seçiminin benchmark'a bağlı olduğu korundu.
 - VAD'nin mevcut MVP tercihi korundu; AK-004 mood alt kararıyla karaktere özgü baseline, zamana bağlı dönüş ve çevrimdışı süre davranışı kabul edildi. Sayısal aralık/katsayı/hızlar uygulama sırasında senaryo testleriyle kalibre edilecektir.
 - Şema doğrulama, RLS, idempotency ve insan onayı ifadelerinin hangi transaction, kimlik, sürüm ve recovery kurallarıyla uygulanacağı ilgili bölümlere eklendi.
+- Scene sonucu ile processing denemesi ayrıldı; `FAILED` recovery geçişleri, lifecycle durdurması sonrası geçerli deneyimin sonuçlandırılması ve worker lease'inden bağımsız etkileşim rezervasyonu netleştirildi. Model/processing sürümü değişikliği domain tekilleştirmesini sıfırlamaz.
+- Admin mesajının kabulü, teslimi ve yanıtı ayrı deneyim sınırlarına bağlandı. LLM gerektiren bütün worker alt işleri ortak GPU kapasitesine uyar; bağımlı processing bekleyen iş GPU slotunu tutmaz.
+- `world_owner_only` için kapsamlı açık izin ve iç işleme ayrımı, aynı kimlikle arşiv restore'u, Owner için de geçerli `BLOCK` engeli ve olumlu `REVIEW` şartı tanımlandı. MVP'de core drives sabittir; dünya içi mesajlar scene yolunu kullanır ve tek çağrılı özet event sonraki fazdadır.
 
 ### Kullanıcıyla ele alınan ürün kararları
 
@@ -1290,3 +1293,5 @@ Her aşama fake/deterministic model adapter'ıyla test edilebilir olmalıdır. G
 | 2026-09-21 | AK-004 mood alt kararı kabul edildi: olaylarla değişen ruh hâli, çevrimdışı süre dahil zamanla karaktere özgü baseline'a yaklaşır; güçlü etkiler daha uzun sürebilir, hafıza ve ilişki state'i ayrı kalır. Sayısal kalibrasyon testlere bırakıldı; hafıza ve kişilik gelişimi alt kararları açık kaldı. |
 | 2026-09-21 | AK-004 hafıza alt kararı kabul edildi: önemli deneyimler korunur; gündelik ayrıntıların retrieval önceliği zamanla azalır. Unutma fiziksel silme değildir; ilgili eski anılar tekrar hatırlanabilir, özetler kaynak ve gizliliği korur, eksik ayrıntılar uydurulmaz. Yalnız kişilik gelişimi alt kararı açık kaldı. |
 | 2026-09-21 | AK-004 kişilik alt kararı kabul edildi: MVP'de temel kişilik/ana değerler sabit, görüş/ilişki/goal gelişimi mümkündür. Yavaş temel kişilik gelişimi sonraki fazdadır; büyük dönüşümler World Owner onayı gerektirir. AK-001–AK-004 tamamlandı; karar seti bütünsel kullanıcı incelemesine hazırlandı. Kodlama başlatılmadı. |
+| 2026-09-22 | Çapraz incelemenin yedi bulgusu giderildi: kesintili scene processing retry'ı, lifecycle sonrası sonuçlandırma, paylaşım izni/iç işleme, admin mesaj teslimi, aynı kimlikle restore, özet event fazlaması ve moderasyon BLOCK sınırı. İlgili MVP kabul koşulları güncellendi. |
+| 2026-09-22 | Kodlama öncesi son tam belge kontrolü tamamlandı. FAILED recovery hedefleri, admin durma isteğinin commit sınırı, lease/etkileşim rezervasyonu ayrımı, sürümden bağımsız domain tekilleştirme, GPU alt iş bağımlılıkları, olumlu REVIEW şartı ve MVP core drive/mesaj sınırları netleştirildi. Yapısal belge kontrolleri ve resmî teknik dayanaklar gözden geçirildi; uygulama kodu veya çalışma zamanı test sonucu üretilmedi. |
