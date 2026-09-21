@@ -590,7 +590,7 @@ Core drives, hiyerarşik goals, izin verilen domain actions ve event-driven refl
 
 #### Agency ve goals
 
-- Core drives, karakter tanımından türetilen ve goal seçimini etkileyen yavaş değişen motivasyonlardır.
+- Core drives, karakter tanımından türetilen ve goal seçimini etkileyen temel motivasyonlardır. MVP'de onaylı kişilik/ana değer çekirdeğiyle birlikte sabittir; yavaş değişimleri sonraki fazdaki kişilik gelişimi kurallarına tabidir. Güncel goal önceliklerinin değişmesi core drive değişimi sayılmaz.
 - Long-term goals günler/haftalar, short-term goals sonraki somut adımlar, scene intentions ise tek sahnedeki amaçlar için kullanılır.
 - Goal'lar `PROPOSED`, `ACTIVE`, `BLOCKED`, `PAUSED`, `COMPLETED`, `FAILED` ve `ABANDONED` durumlarıyla izlenir.
 - LLM goal önerebilir; backend sayı, tekrar, uygulanabilirlik, dünya kuralları ve başka karakterlere yetkisiz sonuç dayatma kontrollerini yapar.
@@ -599,6 +599,7 @@ Core drives, hiyerarşik goals, izin verilen domain actions ve event-driven refl
 #### İzin verilen eylemler
 
 - Karakter yalnızca `request_scene`, `move_to_location`, `send_in_world_message`, `observe`, `reflect`, `update_goal` ve `wait` gibi allowlist domain action'ları önerebilir.
+- MVP'de `send_in_world_message`, uzaktan iletişim kanalında iki karakterli scene talebi olarak ele alınır; teslim ve deneyim commit edilmiş scene turn'leriyle gerçekleşir. Ayrı bir autonomous mesaj teslim hattı açılmaz; aynı rezervasyon, bilgi kapsamı, bütçe/cooldown ve sonuç processing kuralları uygulanır.
 - Backend konum, zaman, müsaitlik, ilişki, bütçe, cooldown ve güvenlik doğrulamasından sonra eylemi uygular.
 - İnternet, haricî mesaj, shell, dosya sistemi veya sınırsız tool erişimi ilk sürümde verilmez.
 
@@ -1107,7 +1108,7 @@ Maksimum 50 karakteri destekleyecek mimari korunurken ilk test dünyası 3–5 a
 - World Owner komutuyla askıdan aktivasyon ve aynı kimliği koruyan özel arşiv restore akışı; restore önce `SUSPENDED` durumuna döner
 - World Owner ile aktif karakter arasında private, streaming chat
 - Tek dünya, merkezî world clock, temel konumlar ve character presence
-- İki karakterli autonomous scene, kurallı aday puanı, bütçe/cooldown ve turn-based scene engine
+- Fiziksel veya uzaktan iletişim kanalında iki karakterli autonomous scene, kurallı aday puanı, bütçe/cooldown ve turn-based scene engine; dünya içi mesaj önerileri de bu akışa girer
 - Core, episodic ve temel semantic memory; provenance ve scope kontrollü retrieval
 - VAD (valence/arousal/dominance) mood/emotion events ve yönlü relationship snapshot/events; karaktere özgü baseline'a zamana bağlı dönüş kabul edilmiştir, sayısal aralık ve hızlar senaryo testleriyle kalibre edilir
 - Basit short-term goals ve önemli scene sonrası reflection
@@ -1152,6 +1153,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - Mood testlerinde yeni etki olmadığında karaktere özgü baseline'a yaklaşma, küçük/güçlü olayların farklı etki süreleri ve çevrimdışı zaman uyarlaması doğrulanmalıdır. Aynı olay/zaman aralığı tekrar işlendiğinde çift etki oluşmamalı; sakinleşme memory veya ilişki güvenini sıfırlamamalıdır.
 - Memory testlerinde önemli deneyimin korunması, gündelik ayrıntının önceliğinin azalması ve ilgili eski kaydın konu yeniden açıldığında bulunabilmesi doğrulanmalıdır. Consolidation kaynak/gizlilik/iddia ayrımını korumalı; dayanağı olmayan ayrıntı gerçek memory'ye dönüşmemeli ve decay fiziksel silme yapmamalıdır.
 - Kişilik testlerinde tekrarlı chat/reflection temel personality, temperament, ana değerler veya bunlardan türetilen baseline'ı otomatik değiştirmemelidir. Buna karşılık kaynak deneyime dayanan ilişki/görüş/goal değişimleri mümkün olmalı; kişiye özgü yakınlık genel kişilik dönüşümü olarak kaydedilmemelidir.
+- MVP'de core drives sabit kalırken goal öncelikleri değişebilmelidir. `send_in_world_message` önerisi scene kabul kurallarını atlayamamalı; rezervasyonsuz veya commit edilmemiş bir mesaj teslim edilmiş deneyim/memory oluşturamamalıdır.
 - Contributor A, contributor B'nin taslağını veya medyasını görememeli/değiştirememeli; aynı pooled bağlantının tekrar kullanımı kimlik sızdırmamalıdır. Anonymous/contributor private chat stream'ine erişememelidir.
 - Yasak bilgi doğrudan memory'den veya türetilmiş reflection/summary/goal üzerinden alıcı context'ine girmemeli; ortak transcript içsel intent/affect alanlarını taşımamalıdır. Public projection ve medya yalnız onaylanan sürümü sunmalıdır.
 - `world_owner_only` bilgisi yetkili iç reflection/consolidation işleminde kullanılabilmeli; dış konuşmada World Owner'a ve yalnız AK-001 izninin kapsadığı diğer alıcıya açılmalıdır. İzin kaydın politikasını değiştirmemeli, ilgisiz bilgiye/alıcıya veya public yayına genişlememeli; türetilmiş kayıtlar aynı sınırları korumalıdır.
