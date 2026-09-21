@@ -363,7 +363,7 @@ Bu karar, seçilen karakterlerin scene'i nasıl yürüttüğünü, konuşma sır
 
 ### Karar
 
-Karaktere özel context kullanan, sınırlandırılmış turn-based scene engine ve düşük önemdeki karşılaşmalar için özet event yolu kabul edilmiştir.
+Karaktere özel context kullanan, sınırlandırılmış turn-based scene engine kabul edilmiştir. Düşük önemdeki karşılaşmalar için tek çağrılı özet event yolu sonraki faza bırakılmıştır; MVP'de yaşanmış autonomous etkileşim yalnız commit edilmiş scene turn'lerine dayanır.
 
 #### Scene yaşam döngüsü
 
@@ -417,7 +417,7 @@ Diğer sonlar: CANCELLED, INTERRUPTED, FAILED (aşağıdaki tabloya göre)
 - Tamamlanan turn'ler kalıcılaştırılır; scene yarıda kesilirse transcript kaybolmaz.
 - Processing işleri idempotent olur; yarım scene etkilerinin nasıl uygulanacağı açık durum kurallarına bağlanır.
 - Varsayılan scene bütçesi yaklaşık 6–10 turn ile sınırlıdır.
-- Düşük önemdeki arka plan karşılaşmaları tam turn-by-turn diyalog yerine tek çağrılı özet event olarak üretilebilir.
+- Tek çağrılı özet event üretimi MVP'de kullanılmaz. Sonraki fazda eklenmeden önce bu yolun canonical event commit noktası, kesinti/iptal davranışı, bütün katılımcılara atomik etki uygulaması ve retry boyunca sabit domain etki kimliği ayrıca kararlaştırılmalıdır. Bu kararlar olmadan özet metin yaşanmış deneyim veya memory kaynağı sayılmaz. Commit edilmiş scene'den türetilen internal/public summary bu ertelemenin kapsamında değildir.
 
 #### Eşzamanlılık ve sonuç uygulama sınırı
 
@@ -549,7 +549,7 @@ Karakterin kendi bilgisi üzerinde yürütülen yetkili memory extraction, refle
 #### Ortak deneyim ve öznel memory
 
 - Scene'in objektif ortak özeti `shared_experience` olarak kaydedilebilir.
-- Ortak özet, doğrulanmış eylem/gözlem ile katılımcı iddiasını ayırır; bir konuşmada söylenen şeyin doğruluğunu varsaymaz. Tek çağrılı arka plan özetleri de aynı bilgi kapsamı ve provenance kurallarına tabidir.
+- Ortak özet, doğrulanmış eylem/gözlem ile katılımcı iddiasını ayırır; bir konuşmada söylenen şeyin doğruluğunu varsaymaz. Sonraki faza bırakılan tek çağrılı özet event yolu da devreye alınırsa aynı bilgi kapsamı ve provenance kurallarına tabi olacaktır; MVP'de ortak özetin deneyim kaynağı commit edilmiş scene turn'leridir.
 - Her katılımcı aynı scene için kendi öznel memory'sini ayrı oluşturur.
 - Aynı olay karakterlerde farklı duygu, yorum ve confidence üretebilir.
 
@@ -1108,6 +1108,7 @@ Maksimum 50 karakteri destekleyecek mimari korunurken ilk test dünyası 3–5 a
 
 - 20–50 karakterin tamamını başlangıçta aktif çalıştırmak
 - Üç veya daha fazla karakterli scene ve çoklu dünya
+- Turn üretmeden karşılaşma gerçekleştiren tek çağrılı özet event yolu; commit edilmiş scene'den internal/public summary üretimi MVP kapsamında kalır
 - Ayrıntılı harita, ekonomi, envanter veya sürekli yaşam simülasyonu
 - Voice, animasyon, mobil uygulama ve Discord/Telegram
 - Otomatik public yayın ve contributor'ın aktif karakteri doğrudan düzenlemesi
