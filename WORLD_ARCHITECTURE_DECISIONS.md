@@ -478,6 +478,16 @@ Karaktere özel bilgi, ortak deneyim, sır, söylenti ve public world bilgisinin
 
 Kapsam, bilgi türü, provenance, confidence ve shareability taşıyan epistemik memory modeli kabul edilmiştir.
 
+#### Memory eksenleri
+
+Memory kaydı birbirinden bağımsız şu eksenleri taşır:
+
+- Memory sınıfı (`core`, `episodic`, `semantic`): kaydın bilişsel rolü ve yaşam döngüsü. Decay, consolidation ve retrieval ağırlıkları bu sınıfa göre ayrışır.
+- Epistemik tür (`fact`, `belief`, `observation`, `claim`, `rumor`, `interpretation`): bilginin karakter açısından statüsü.
+- Kapsam (`private`, `shared`, `world`, `public`), paylaşım politikası ve sır niteliği: erişim ve paylaşım sınırları.
+
+Örnekler: sahne diyaloğundan çıkan `episodic` kayıt tipik olarak `observation`, `claim` veya `interpretation` olur. Consolidation ile üretilen `semantic` kayıt kaynaklarının epistemik türlerini ve en kısıtlı sınırını taşır; tekrar sayısı onu `fact`'e çeviremez. Onaylı definition'dan türeyen `core` memory, yetkili dünya kaydı olduğu için karakterin kendi geçmişi hakkında `fact` olabilir; karakterin kendi yorumları `belief` veya `interpretation` kalır.
+
 #### Bilgi kapsamları
 
 - `private`: ilgili karaktere özel iç bilgi, yorum, sır ve World Owner konuşması
