@@ -121,7 +121,8 @@ UNDER_REVIEW
 - Kim tarafından ne önerildiği ve kim tarafından ne zaman onaylandığı audit kaydına alınır.
 - Bir başvuru/revizyonun onayı, incelenen değiştirilemez definition sürümüne bağlanır; içerik değişirse yeni inceleme gerekir.
 - Her scene ve chat üretimi kullandığı character definition, prompt ve model sürümünü kaydeder. Çalışan bir üretim ortasında yeni definition sürümüne geçilmez.
-- Askıya alma/arşivleme, yeni iş başlatma iznini kaldırır. Bekleyen işler çalıştırılmadan, devam eden işler sonuç uygulamadan önce güncel lifecycle ve iptal durumu yeniden doğrulanır; önceki onay sınırsız çalışma yetkisi vermez.
+- Askıya alma/arşivleme, yeni etkileşim ve davranış üretme iznini kaldırır; yeni scene/chat turn'ü, teslim edilmemiş chat mesajının teslimi veya yeni autonomous eylem başlatılamaz. Bekleyen üretimler çalıştırılmadan, devam eden üretimler sonuç uygulamadan önce güncel lifecycle ve iptal durumu yeniden doğrulanır; eski üretim denemesi önceki onaya dayanarak yeni etkileşim commit edemez.
+- Askıya alma/arşivleme öncesinde commit edilmiş geçerli deneyimin henüz uygulanmamış etkilerini sonuçlandırmak ayrı bir iş yetkisidir. Güncel lifecycle altında yetkilendirilen sonuç processing/recovery işi, sabit kaynak sınırındaki deneyimi WADR-006 ve WADR-011'in atomik/idempotent protokolüyle tamamlayabilir. Bu yetki yeni diyalog, deneyim veya davranış üretmez; yalnız mevcut deneyimin memory/relationship/affect/goal etkilerini hesaplar ve uygular. Güvenlik, kaynak geçerliliği, state sürümü ve deneme sahipliği kontrolleri korunur; doğrulanamayan etki quarantine'e gider.
 - Tanım revizyonunun mevcut geçmiş, memory ve ilişkilerle çelişmesi otomatik olarak çözülmez. AK-004 kapsamında kabul edilen geçmiş koruma ve kayıtlı düzeltme kuralları uygulanır.
 
 ### Geçmişin korunması ve tanım düzeltmeleri — AK-004 alt kararı: KABUL
@@ -375,7 +376,7 @@ Diğer sonlar: CANCELLED, INTERRUPTED, FAILED (aşağıdaki tabloya göre)
 | PLANNING | CANCELLED | Turn başlamadan durdurma veya geçersizleşme |
 | PLANNING | FAILED | Operasyonel hata, retry sınırı doldu |
 | RUNNING | PROCESSING | Scene Controller'ın kendi bitirme koşulu: doğal sonuç, amaç, karşılıklı bitirme, turn/token bütçesi veya idle timeout |
-| RUNNING | INTERRUPTED | Dışarıdan kesinti: admin mesajı (AK-003), World Owner müdahalesi, güvenlik durdurması, karakter askıya alma; en az bir commit edilmiş turn var |
+| RUNNING | INTERRUPTED | Dışarıdan kesinti: admin mesajı (AK-003), World Owner müdahalesi, güvenlik durdurması, karakter askıya alma/arşivleme; en az bir commit edilmiş turn var |
 | RUNNING | CANCELLED | Hiç commit edilmiş turn yokken iptal veya dışarıdan kesinti |
 | RUNNING | FAILED | Kurtarılamayan operasyonel hata |
 | PROCESSING | COMPLETED | Tüm katılımcı etkileri tek atomik sonuç transaction'ında uygulandı (geçerli sıfır değişim de sonuçtur) |
@@ -423,6 +424,7 @@ Diğer sonlar: CANCELLED, INTERRUPTED, FAILED (aşağıdaki tabloya göre)
 - Domain etkileri uygulanmadan sahne `COMPLETED` olmaz ve ilgili karakter yeni etkileşime hazır sayılmaz. Embedding, public summary ve bildirimler gibi türetilmiş işler outbox ile sonradan yürütülebilir; bunlar canonical sonucun commit edilmesini engellemez.
 - Henüz embedding'i üretilmemiş yeni canonical memory'ler context'ten kaybolmaz; yetkili son etkileşim kayıtları/recent memory yolu vector indeksinden bağımsız okunur.
 - Yarım sahnede yalnız commit edilmiş, geçerli turn'ler yaşanmış etkileşim sayılır; üretilmemiş devamı varsayılmaz. Kesinti nedeni, son kabul edilen turn ve processing durumu ayrı kaydedilir. Bu prefix'in domain etkileri aynı sonuç protokolüyle en fazla bir kez uygulanır; doğrulanamayan çıktı quarantine'e alınır.
+- Katılımcı askıya alındığında/arşivlendiğinde yeni turn commit'i durdurulur ve son geçerli turn sınırı sabitlenir. WADR-001'deki ayrı sonuçlandırma yetkisiyle bütün katılımcıların geçerli prefix etkileri atomik olarak tamamlanır; zaten `PROCESSING` aşamasındaki sahnede de aynı yetki kullanılır. Başarılı sonuçlandırma karakteri yeniden aktive etmez. Rezervasyon devrinde hedef karakterin güncel `ACTIVE` durumu ve chat yetkisi yeniden doğrulanır; uygun değilse rezervasyon serbest bırakılır ve bekleyen chat, görünür lifecycle engeliyle tutulur.
 - `PLANNING` ve `PROCESSING` dahil her aşamanın hata/iptal/yeniden deneme geçişleri uygulama sözleşmesinde tanımlanır. Operasyonel hata, sahnenin kendiliğinden başarıyla tamamlandığı anlamına gelmez.
 - Admin'in sahnedeki karaktere mesaj göndermesi hâlinde rezervasyon devri aşağıdaki AK-003 akışını uygular.
 
@@ -1111,6 +1113,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - AK-003 için turn üretimi, turn sınırı ve processing sırasında admin mesajı test edilmelidir: durma isteğinden sonra yeni sahne turn'ü başlamamalı, geçerli transcript etkileri bir kez uygulanmalı ve admin yanıtı güncel state ile üretilmelidir. Timeout/processing hatası görünür olmalı; henüz başlamamış sahne için deneyim uydurulmamalıdır.
 - `INTERRUPTED` sahnede processing denemeleri tükendiğinde manuel retry sahneyi yeniden açmamalı; aynı transcript etkilerini en fazla bir kez uygulamalı ve bekleyen admin chat'e rezervasyon ancak başarılı processing sonrasında devredilmelidir.
 - Askıya alma, iptal, yetki değişimi ve onay geri çekme sonrası eski işler izinsiz state/yayın üretememelidir.
+- Turn commit'i öncesinde ve sonrasında katılımcı askıya alma/arşivleme sınanmalıdır: eski üretim yeni turn commit edememeli, önceden commit edilmiş geçerli prefix'in bütün katılımcı etkileri ayrı sonuçlandırma yetkisiyle bir kez tamamlanabilmelidir. Sonuçlandırma pasif karakteri aktive etmemeli veya ona bekleyen chat'i başlatmamalıdır.
 - Definition revizyonu geçmiş olayları sessizce değiştirmemeli; yeni yaşam olayı ile veri hatası düzeltmesi ayrı sınanmalıdır. Düzeltmede kaynak/audit geçmişi korunmalı, geçersizleşmiş bilgi güncel context veya eski onayla public projection'a geri dönmemelidir.
 - Mood testlerinde yeni etki olmadığında karaktere özgü baseline'a yaklaşma, küçük/güçlü olayların farklı etki süreleri ve çevrimdışı zaman uyarlaması doğrulanmalıdır. Aynı olay/zaman aralığı tekrar işlendiğinde çift etki oluşmamalı; sakinleşme memory veya ilişki güvenini sıfırlamamalıdır.
 - Memory testlerinde önemli deneyimin korunması, gündelik ayrıntının önceliğinin azalması ve ilgili eski kaydın konu yeniden açıldığında bulunabilmesi doğrulanmalıdır. Consolidation kaynak/gizlilik/iddia ayrımını korumalı; dayanağı olmayan ayrıntı gerçek memory'ye dönüşmemeli ve decay fiziksel silme yapmamalıdır.
