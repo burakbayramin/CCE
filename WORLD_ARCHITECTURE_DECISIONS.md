@@ -12,7 +12,7 @@ Cognitive Character Engine, proje yöneticisinin AI karakterlerle konuşabildiğ
 
 ### World Owner / Admin
 
-- Karakter oluşturabilir.
+- Karakter oluşturabilir; aynı yapılandırılmış form, otomatik moderasyon taraması ve değiştirilemez definition sürümü hattını kullanır. Kendi onayı ve gerçek actor audit'e kaydedilir; doğrulama atlanmaz (WADR-003).
 - Aktif karakterlerle konuşabilir.
 - Katkıcı başvurularını ve değişiklik önerilerini inceleyebilir.
 - Karakteri dünyaya kabul edebilir, askıya alabilir veya arşivleyebilir.
@@ -99,8 +99,13 @@ UNDER_REVIEW
         ACTIVE
           ↓
         SUSPENDED / ARCHIVED
+
+(SUBMITTED / UNDER_REVIEW / CHANGES_REQUESTED) ──► WITHDRAWN
 ```
 
+- Katkıcı, karar verilmemiş başvurusunu (`SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`) geri çekebilir; durum `WITHDRAWN` olur, canlı state oluşmaz ve audit'e yazılır. `WITHDRAWN` başvuru yeniden açılmaz; yeni başvuru veya yeni revizyon gerekir.
+- `SUSPENDED → ACTIVE` yalnız World Owner komutuyla yapılır. Geri alma öncesinde güncel definition sürümü, moderasyon durumu ve askıya alma nedeni yeniden doğrulanır. Askıdayken geçen dünya zamanı için geçmiş sosyal deneyim üretilmez; presence ve rutinler AK-002 uzlaştırma kurallarıyla güncel zamana uyarlanır.
+- `ARCHIVED` terminaldir. Arşivlenmiş karakteri geri getirmek yeni bir World Owner kararı ve audit kaydı gerektirir.
 - Katkıcı yalnızca kendi taslaklarını oluşturabilir ve başvuru öncesinde düzenleyebilir.
 - Gönderilmiş başvuru inceleme süresince değiştirilemez; gerekirse yeni revizyon açılır.
 - World Owner başvuruyu kabul edebilir, reddedebilir veya değişiklik isteyebilir.
@@ -235,6 +240,10 @@ Başka bir karakteri etkileyen bağlantılar yalnızca öneri olarak sunulur ve 
 - Gerçek kişilerin izinsiz kopyaları ve telifli karakterlerin birebir kopyaları kabul edilmez.
 - Prompt/system talimatı enjekte etmeye çalışan veya başka kişilerin özel verilerini içeren katkılar reddedilir.
 - Ham katkı metni hiçbir zaman doğrudan system prompt olarak kullanılmaz.
+
+#### World Owner'ın karakter oluşturması
+
+World Owner'ın oluşturduğu karakterler de aynı yapılandırılmış form, otomatik moderasyon taraması ve değiştirilemez definition sürümü hattından geçer. İnceleme adımı World Owner'ın kendi onayıdır; gerçek actor audit'e yazılır ve doğrulama atlanmaz.
 
 ---
 
