@@ -102,11 +102,14 @@ UNDER_REVIEW
         SUSPENDED / ARCHIVED
 
 (SUBMITTED / UNDER_REVIEW / CHANGES_REQUESTED) ──► WITHDRAWN
+SUSPENDED ──► ACTIVE (yalnız World Owner komutu)
+ARCHIVED ──► SUSPENDED (yalnız özel World Owner restore komutu)
 ```
 
 - Katkıcı, karar verilmemiş başvurusunu (`SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`) geri çekebilir; durum `WITHDRAWN` olur, canlı state oluşmaz ve audit'e yazılır. `WITHDRAWN` başvuru yeniden açılmaz; yeni başvuru veya yeni revizyon gerekir.
-- `SUSPENDED → ACTIVE` yalnız World Owner komutuyla yapılır. Geri alma öncesinde güncel definition sürümü, moderasyon durumu ve askıya alma nedeni yeniden doğrulanır. Askıdayken geçen dünya zamanı için geçmiş sosyal deneyim üretilmez; presence ve rutinler AK-002 uzlaştırma kurallarıyla güncel zamana uyarlanır.
-- `ARCHIVED` terminaldir. Arşivlenmiş karakteri geri getirmek yeni bir World Owner kararı ve audit kaydı gerektirir.
+- `SUSPENDED → ACTIVE` yalnız World Owner komutuyla yapılır. Geri alma öncesinde güncel definition sürümü, moderasyon durumu ve askıya alma nedeni yeniden doğrulanır; gerekli geçmiş sonuç processing'i tamamlanmış olmalı ve aktivasyon transaction'ı aktif karakter limitini korumalıdır. Askıdayken geçen dünya zamanı için geçmiş sosyal deneyim üretilmez; presence ve rutinler AK-002 uzlaştırma kurallarıyla güncel zamana uyarlanır.
+- `ARCHIVED` normal lifecycle içinde terminaldir; tek istisna ayrı ve idempotent bir World Owner restore komutudur. Bu komut aynı karakter kimliğini koruyarak `ARCHIVED → SUSPENDED` geçişi yapar; yeni karakter veya geçmiş kopyası oluşturmaz. Korunmuş definition sürümleri, memory, relationship ve event geçmişi aynı kimlikte kalır; retention ile silinmiş veri yeniden oluşturulmaz. Gerçek actor, gerekçe, önceki/yeni durum ve ilgili definition sürümü audit'e yazılır.
+- Restore güncel definition ve moderasyon durumunu, arşivleme nedenini ve mevcut verinin bütünlüğünü yeniden doğrular; eksik veya geçersiz kayıt varsa işlem uygulanmaz ve inceleme gerekir. Aktif dünyaya dönüş ayrı `SUSPENDED → ACTIVE` komutuna ve yukarıdaki kontrollere tabidir. Arşivde geçen süre AK-002 ile uzlaştırılır; restore eski scene/chat işlerini otomatik yeniden başlatmaz veya kaldırılmış public içeriği yeniden yayınlamaz.
 - Katkıcı yalnızca kendi taslaklarını oluşturabilir ve başvuru öncesinde düzenleyebilir.
 - Gönderilmiş başvuru inceleme süresince değiştirilemez; gerekirse yeni revizyon açılır.
 - World Owner başvuruyu kabul edebilir, reddedebilir veya değişiklik isteyebilir.
@@ -1089,6 +1092,7 @@ Maksimum 50 karakteri destekleyecek mimari korunurken ilk test dünyası 3–5 a
 - Contributor kayıt/giriş, yapılandırılmış karakter taslağı, başvuru, durum, geri bildirim ve revizyon akışı
 - World Owner başvuru inceleme, moderasyon sinyalleri, kabul/ret/değişiklik talebi ve karakter aktivasyonu
 - Aktif karakteri askıya alma/arşivleme ve karakter tanımı ön izlemesi
+- World Owner komutuyla askıdan aktivasyon ve aynı kimliği koruyan özel arşiv restore akışı; restore önce `SUSPENDED` durumuna döner
 - World Owner ile aktif karakter arasında private, streaming chat
 - Tek dünya, merkezî world clock, temel konumlar ve character presence
 - İki karakterli autonomous scene, kurallı aday puanı, bütçe/cooldown ve turn-based scene engine
@@ -1128,6 +1132,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - Askıya alma, iptal, yetki değişimi ve onay geri çekme sonrası eski işler izinsiz state/yayın üretememelidir.
 - Turn commit'i öncesinde ve sonrasında katılımcı askıya alma/arşivleme sınanmalıdır: eski üretim yeni turn commit edememeli, önceden commit edilmiş geçerli prefix'in bütün katılımcı etkileri ayrı sonuçlandırma yetkisiyle bir kez tamamlanabilmelidir. Sonuçlandırma pasif karakteri aktive etmemeli veya ona bekleyen chat'i başlatmamalıdır.
 - Definition revizyonu geçmiş olayları sessizce değiştirmemeli; yeni yaşam olayı ile veri hatası düzeltmesi ayrı sınanmalıdır. Düzeltmede kaynak/audit geçmişi korunmalı, geçersizleşmiş bilgi güncel context veya eski onayla public projection'a geri dönmemelidir.
+- Arşiv restore'u aynı karakter kimliği ve korunmuş geçmişle yalnız `SUSPENDED` durumuna dönmeli; retry duplicate karakter/audit sonucu üretmemelidir. Sonraki aktivasyon güncel moderasyon ve kapasite kontrollerine uymalı; eski işler/yayınlar kendiliğinden açılmamalı ve arşiv süresi için deneyim uydurulmamalıdır.
 - Mood testlerinde yeni etki olmadığında karaktere özgü baseline'a yaklaşma, küçük/güçlü olayların farklı etki süreleri ve çevrimdışı zaman uyarlaması doğrulanmalıdır. Aynı olay/zaman aralığı tekrar işlendiğinde çift etki oluşmamalı; sakinleşme memory veya ilişki güvenini sıfırlamamalıdır.
 - Memory testlerinde önemli deneyimin korunması, gündelik ayrıntının önceliğinin azalması ve ilgili eski kaydın konu yeniden açıldığında bulunabilmesi doğrulanmalıdır. Consolidation kaynak/gizlilik/iddia ayrımını korumalı; dayanağı olmayan ayrıntı gerçek memory'ye dönüşmemeli ve decay fiziksel silme yapmamalıdır.
 - Kişilik testlerinde tekrarlı chat/reflection temel personality, temperament, ana değerler veya bunlardan türetilen baseline'ı otomatik değiştirmemelidir. Buna karşılık kaynak deneyime dayanan ilişki/görüş/goal değişimleri mümkün olmalı; kişiye özgü yakınlık genel kişilik dönüşümü olarak kaydedilmemelidir.
