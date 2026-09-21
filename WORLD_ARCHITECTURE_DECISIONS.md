@@ -2,6 +2,8 @@
 
 Bu belge, en fazla 50 kalıcı AI karakterin yaşadığı ortak dünya için ürün ve mimari kararlarını tek tek değerlendirmek amacıyla tutulur.
 
+**Belge durumu:** Ana mimari ve AK-001–AK-004 ürün davranışı kararları kabul edilmiştir; teknik çapraz inceleme düzeltmeleri işlenmiştir. Karar seti kullanıcının bütünsel gözden geçirmesine hazırdır. Altı model/sağlayıcı seçimi ilgili uygulama aşamalarına ertelenmiştir; sayısal parametreler testlerle kalibre edilecektir. Bu belge uygulama planıdır; çalışan bir sistem veya tamamlanmış test sonucu değildir. Kararların tamamlanması kodlamaya başlama onayı anlamına gelmez.
+
 ## Ürün Tanımı
 
 Cognitive Character Engine, proje yöneticisinin AI karakterlerle konuşabildiği ve karakterlerin birbirleriyle özerk etkileşimler ve ilişkiler geliştirdiği kalıcı bir yapay dünya motorudur. Destekçiler ve katkıcılar UI üzerinden yeni karakter tasarlayabilir; ancak karakterlerle konuşamaz ve canlı dünya state'ini doğrudan değiştiremez.
@@ -16,6 +18,15 @@ Cognitive Character Engine, proje yöneticisinin AI karakterlerle konuşabildiğ
 - Karakteri dünyaya kabul edebilir, askıya alabilir veya arşivleyebilir.
 - Dünya olaylarını ve engine ayarlarını yönetebilir.
 - Yetkili brain/debug ekranlarına erişebilir.
+
+### World Owner'ın dünya içindeki insan kimliği
+
+- World Owner, karakterlerle ilişki kuran kalıcı bir insan katılımcı olarak dünyada yer alır. Yönetici yetkileri ile bu dünya içi kimlik ayrı kavramlardır; ayrı bir giriş hesabı gerektirmez.
+- Karakterler aynı insanı tanır; her karakterin onunla yaşadığı deneyimlere ait memory'si ve ona yönelik bağımsız ilişki state'i olur. Bir karakterin öğrendikleri diğerlerine otomatik aktarılmaz.
+- Sohbetler ilgili karakterin hafıza, mood ve ilişki değerlendirmesine konu olan dünya içi deneyimlerdir. World Owner'ın bir sözü, sırf yönetici tarafından söylendiği için dünya gerçeği veya başka karakterin state'ini değiştiren komut sayılmaz.
+- Yönetim işlemleri sohbetten ayrı komut akışında yürütülür. Bir yönetim işlemi, ayrıca yetkili bir dünya olayı/gözlem oluşturulmadıkça karakterlere otomatik bilgi kazandırmaz.
+- İnsan katılımcı AI olarak simüle edilmez; engine onun adına konuşma veya öznel duygu üretmez. İnsan kimliği, en fazla 50 aktif AI karakter sınırına dahil değildir.
+- Özel sohbetten öğrenilen bilgi varsayılan olarak World Owner ile ilgili karakter arasında kalır. Diğer karakterlere yalnız World Owner'ın ilgili bilgi ve alıcı kapsamı için açık izniyle aktarılabilir (`AK-001`: KABUL). Mevcut private erişim ve public yayın yasakları geçerliliğini korur.
 
 ### Contributor
 
@@ -103,6 +114,19 @@ UNDER_REVIEW
 - World Owner onay verirse yeni karakter tanımı sürümlenerek yayınlanır.
 - Engine tarafından oluşmuş memory, relationship, mood, goal ve event state'i katkıcı değişikliğinden ayrıdır.
 - Kim tarafından ne önerildiği ve kim tarafından ne zaman onaylandığı audit kaydına alınır.
+- Bir başvuru/revizyonun onayı, incelenen değiştirilemez definition sürümüne bağlanır; içerik değişirse yeni inceleme gerekir.
+- Her scene ve chat üretimi kullandığı character definition, prompt ve model sürümünü kaydeder. Çalışan bir üretim ortasında yeni definition sürümüne geçilmez.
+- Askıya alma/arşivleme, yeni iş başlatma iznini kaldırır. Bekleyen işler çalıştırılmadan, devam eden işler sonuç uygulamadan önce güncel lifecycle ve iptal durumu yeniden doğrulanır; önceki onay sınırsız çalışma yetkisi vermez.
+- Tanım revizyonunun mevcut geçmiş, memory ve ilişkilerle çelişmesi otomatik olarak çözülmez. AK-004 kapsamında kabul edilen geçmiş koruma ve kayıtlı düzeltme kuralları uygulanır.
+
+### Geçmişin korunması ve tanım düzeltmeleri — AK-004 alt kararı: KABUL
+
+- Aktivasyondan sonra yaşanmış olaylar ve oluşmuş ilişkiler yeni definition sürümüyle geriye dönük yeniden yazılmaz. Küçük stil/ifade düzenlemeleri mevcut kimlik ve hikâyeyle uyumlu olmalı, World Owner onaylı sürüm akışından geçmelidir.
+- Meslek veya yaşam koşulu gibi anlamlı değişiklikler, geçerli dünya kuralları altında yeni bir yaşam olayı olarak gerçekleşir; eski olayların anlamı sessizce değiştirilmez. Örneğin doktor olan karakter sonradan öğretmen olabilir, ancak önceki deneyimleri öğretmenmiş gibi yeniden oluşturulmaz.
+- Gerçek bir tanım/veri hatası için World Owner onaylı özel düzeltme akışı kullanılır. Düzeltmenin gerekçesi, önceki ve yeni sürüm, etkilenen memory/ilişki/goal kayıtları ve kaynak olaylar uygulama öncesinde incelenir; bağımlı kayıtlar körlemesine silinmez veya yeniden üretilmez.
+- Teknik düzeltme, karakterin gerçekten yaşadığı yeni bir deneyim gibi kaydedilmez. Eski audit/event kayıtları korunur; correction/superseding kayıtları ve açık sürüm bağlantılarıyla geçerli durum belirtilir. Güncel context, geçersizleşmiş tanımı doğru bilgi olarak kullanmaz; gerçekten söylenmiş bir sözün transcript'i de geriye dönük değiştirilmez.
+- Düzeltmeden etkilenen snapshot, context özetleri, embedding ve projection'lar kontrollü olarak uzlaştırılır. Değişmiş public içerik eski yayın onayıyla yeniden yayınlanmaz; devam eden üretimler sürüm ve geçerlilik kontrollerine tabidir.
+- Geçmiş/revizyon, mood, hafıza ve deneyimlerle kişilik gelişiminin sınırları AK-004 kapsamında kabul edilmiştir. MVP'de temel kişilik sabittir; gelişim görüş, ilişki ve hedeflerde gerçekleşir. Uzun vadeli temel kişilik değişimi sonraki fazdadır.
 
 ### Güvenlik sonucu
 
@@ -297,7 +321,7 @@ Deterministik aday üretimi, açıklanabilir puanlama, yalnızca daraltılmış 
 - Scene seviyesinde turn, süre, token ve idle timeout sınırı
 - Worker seviyesinde eşzamanlı LLM işi, rate limit, timeout ve retry sınırı
 
-MVP başlangıç hedefi donanım testleriyle kesinleştirilmek üzere 3–5 aktif karakter için günde yaklaşık 2–4 autonomous scene, karakter başına en fazla 2 scene, aynı çift için 12–24 saat cooldown, scene başına 6–10 turn ve aynı anda 1 autonomous scene'dir. Aktif karakter sayısı büyüdüğünde dünya bütçesi önce 10–15 scene/gün aralığına kontrollü biçimde yükseltilebilir.
+MVP başlangıç hedefi donanım testleriyle kesinleştirilmek üzere 3 aktif karakter için günde yaklaşık 2–3, 4–5 aktif karakter için 2–4 autonomous scene'dir. Karakter başına günlük en fazla 2 scene, aynı çift için 12–24 saat cooldown, scene başına toplam 6–10 turn ve aynı anda 1 autonomous scene sınırı uygulanır. İki kişilik scene'lerde günlük üst sınır dünya kotası ile `floor(aktif_karakter_sayısı × karakter_kotası / 2)` değerinin küçüğünü aşamaz; müsaitlik ve cooldown bu sayıyı daha da düşürebilir. Aktif karakter sayısı büyüdüğünde dünya bütçesi önce 10–15 scene/gün aralığına kontrollü biçimde yükseltilebilir.
 
 #### Fairness ve uyarlama
 
@@ -406,6 +430,7 @@ Objektif bağlantıları, karakterlerin öznel ve yönlü ilişki state'inden ay
 #### Yönlü öznel state
 
 - Her `source_character → target_character` yönü ayrı state'tir.
+- AI karakterlerin World Owner'a yönelik ilişkileri de `source_character → world_owner_person` yönünde ayrı tutulur; hedef, AI karakter veya dünya içi insan kimliği olabilir. İnsan için ters yönde yapay duygu/ilişki state'i türetilmez.
 - MVP boyutları familiarity, trust, affection, respect, tension, fear ve rivalry'dir.
 - Karakter çiftleri için baştan kayıt üretilmez; tanışma veya tanımlı bağ oluştuğunda sparse graph üzerinde yaratılır.
 - `friend`, `rival`, `conflicted` gibi okunabilir etiketler sayısal state'ten türetilir ve birden fazlası aynı anda geçerli olabilir.
@@ -443,7 +468,7 @@ Kapsam, bilgi türü, provenance, confidence ve shareability taşıyan epistemik
 
 #### Epistemik türler ve provenance
 
-- Memory; `fact`, `belief`, `observation`, `claim`, `rumor`, `interpretation` veya `secret` gibi bir bilgi türü taşır.
+- Memory; `fact`, `belief`, `observation`, `claim`, `rumor` veya `interpretation` gibi bir epistemik tür taşır. `secret` bu türlerle aynı enum'da değildir; ayrı hassasiyet/sır niteliğidir. Bir bilgi hem `claim` hem sır olabilir.
 - Kaynak türü/kimliği, kaynak karakter, ilgili scene, subjects, confidence, oluşma ve olay zamanı mümkün olduğunca kaydedilir.
 - Bir karakterin iddiası diğer karakterde doğrudan gerçek değil, kaynağı belirtilmiş claim olarak oluşur.
 - Çelişkili iddialar tek bir kayıtta zorla birleştirilmez; ayrı provenance zincirleriyle korunur.
@@ -525,12 +550,31 @@ Core drives, hiyerarşik goals, izin verilen domain actions ve event-driven refl
 
 - Reflection; önemli scene, relationship eşiği, goal sonucu, world event veya günlük consolidation gibi anlamlı tetikleyicilerde çalışır.
 - Belief, goal, memory consolidation, diary ve self-model değişiklikleri yalnız öneri olarak üretilir ve backend tarafından doğrulanır.
-- Mood kısa, belief/relationship/goal orta, personality/temperament ise çok uzun zaman ölçeğinde değişir.
-- Büyük personality değişiklikleri World Owner incelemesine yönlendirilebilir.
+- Mood kısa, belief/relationship/goal daha uzun zaman ölçeğinde değişebilir. MVP'de temel personality/temperament ve ana değerler sabittir; bunların deneyimlerle değişmesi sonraki fazda, aşağıdaki sınırlara göre ele alınır.
+- Sonraki fazda büyük personality/ana değer değişiklikleri World Owner'ın açık onayını gerektirir; yalnız LLM önerisi veya reflection sonucu uygulanmaz.
+
+#### Kişilik gelişiminin sınırları — AK-004 alt kararı: KABUL
+
+- İlk sürümde onaylı temel kişilik, temperament ve ana değerler deneyimlerle otomatik değiştirilmez. Reflection veya self-model güncellemesi bu çekirdeği dolaylı olarak yeniden yazamaz; normal tanım revizyonu da bu sınırı aşan bir arka kapı değildir. Gerçek veri hataları WADR-001'deki kayıtlı düzeltme sürecine tabidir.
+- Yaşanmış deneyimler karakterin insanlara/diğer karakterlere yönelik görüşlerini, güvenini, ilişkilerini ve hedeflerini değiştirebilir. Bu değişimler kaynak olaylara dayanır, backend sınırlarıyla doğrulanır ve karakterin bilgi/gizlilik kapsamını korur.
+- Bir ilişkiye özgü davranış değişikliği genel kişilik değişimi sayılmaz: çekingen bir karakter tanıdığı World Owner yanında daha rahat olabilir, ancak tek başına bu deneyim herkese karşı dışa dönük bir temel kişilik oluşturmaz.
+- Sonraki fazlarda temel kişilikte yavaş, sınırlı gelişim eklenebilir. Öneriler birikmiş gerçek deneyimlerle gerekçelendirilir; tek konuşma, geçici mood veya aynı olayın tekrar işlenmesi kalıcı dönüşüm için yeterli sayılmaz.
+- Büyük dönüşümler World Owner onayı, sürümlü definition ve audit akışından geçer. Eski deneyimler yeni kişiliğe uydurulmak üzere yeniden yazılmaz; yeni sürüm geçerli olduğu andan itibaren kullanılır.
+- Tam personality evolution, değişim eşikleri ve uzun vadeli baseline güncelleme algoritması MVP dışında kalır. Bu fazlama MVP'deki memory, ilişki, görüş ve goal gelişimini engellemez.
 
 #### Çalışma sıklığı
 
 Planlama sürekli polling yerine event ve zaman bloğu değişimlerinde, bütçe kontrollü yapılır. Düşük önem durumunda LLM çağrısı olmadan deterministik `wait` seçilebilir.
+
+#### Mood ve zamana bağlı sakinleşme — AK-004 alt kararı: KABUL
+
+- Her karakterin onaylı personality/temperament tanımından türetilen kendine özgü olağan VAD baseline'ı vardır. Bütün karakterler aynı nötr ruh hâline dönmez; MVP'de olağan deneyimler baseline'ı otomatik yeniden yazmaz. Uzun vadeli kişilik gelişimine bağlı baseline değişimi yukarıdaki sonraki faz sınırlarına tabidir.
+- Yaşanmış olaylar emotion event'leri üzerinden mood'u etkiler. LLM etki önerir; backend doğrulanmış olay, mevcut state, personality ve sınırlı delta kurallarıyla uygular. Yeni etki yokken geçici mood sapmaları zamanla karakterin baseline'ına yaklaşır.
+- Küçük olayların etkisi daha kısa, güçlü olayların etkisi daha uzun sürebilir. Etki büyüklüğü ve sönümlenme süresi ayrı, sınırlandırılmış parametrelerdir; şiddetli olay karakteri süresiz tek mood'da kilitlemez.
+- Mood, memory ve relationship ayrı state'tir. Sakinleşmek olayı unutmak, affetmek, güveni geri kazanmak veya bir goal'u tamamlamak anlamına gelmez; bu kayıtlar mood dönüşü nedeniyle sıfırlanmaz.
+- Geçen süre world_clock üzerinden hesaplanır ve çevrimdışı dönemleri kapsar. Worker geri geldiğinde son hesaplama zamanından güncel dünya zamanına deterministik uyarlama yapılır; aradaki süre için LLM konuşması veya yaşanmamış emotion event'i üretilmez.
+- Aynı olay veya aynı zaman aralığı retry ile ikinci kez uygulanmaz. Hesap güncelleme/polling sıklığına bağlı farklı sonuç üretmemeli; kullanılan state zamanı ve politika sürümü kaydedilmelidir. Gecikmiş gerçek olaylar kaynağın olay zamanı gözetilerek uzlaştırılır, eski duygu yeni olmuş gibi tam şiddette uygulanmaz.
+- VAD aralıkları, baseline türetme katsayıları, maksimum delta ve sönümlenme hızları sürümlü, yapılandırılabilir teknik parametrelerdir. Kesin değerler senaryo testleriyle ayarlanır; bu kalibrasyon kabul edilen ürün davranışını değiştirmez.
 
 ---
 
@@ -610,13 +654,13 @@ Cloud
 Yerel AI makinesi
 ├── Python worker'lar
 ├── Yerel LLM runtime
-├── Hermes
+├── Benchmark sonrası seçilecek LLM
 ├── Embedding modeli
 └── Opsiyonel reranker
 ```
 
 - Public World Viewer ve katkı sistemi yerel AI makinesi çevrimdışıyken çalışmaya devam eder.
-- Yerel makine çevrimdışıyken yeni AI işleri queue'da kalır ve autonomous scene üretimi duraklatılır.
+- Yerel makine çevrimdışıyken kabul edilen AI işleri durable queue'da kalır ve yeni autonomous scene üretimi duraklatılır; dünya saati ilerler. Queue'da kalmak, yeniden bağlantıda koşulsuz çalıştırılma garantisi değildir. İşler AK-002 kapsamında güncel geçerlilik denetiminden geçer; gerçekleşmemiş geçmiş konuşmalar üretilmez.
 - Yerel worker yalnız dışarı doğru güvenli bağlantı kurar; LLM runtime internete açılmaz.
 - Worker heartbeat ve kapasite bilgisi control plane'e bildirilir.
 - Queue mesajları büyük/hassas içerik yerine sürümlü kimlik referansları taşır.
@@ -686,7 +730,7 @@ Public World Viewer, Contributor Portal ve Admin Studio tek bir Next.js App Rout
 - Supabase Auth için cookie tabanlı SSR yaklaşımı kullanılır; ilgili paket sürümleri kontrollü sabitlenir.
 - Server Components public ve server-rendered okumalar için kullanılır.
 - TanStack Query API/server state'i, React Hook Form katkı formları ve Zustand yalnızca karmaşık geçici UI state'i için kullanılır.
-- Supabase Realtime yalnız izin verilen public veya operasyonel projection güncellemelerinde kullanılır.
+- Supabase Realtime izin verilen public/operasyonel projection güncellemelerinde ve aşağıda tanımlanan private admin chat stream'inde kullanılır.
 - FastAPI OpenAPI şemasından TypeScript tipleri/client üretilerek Python ve TypeScript sözleşmelerinin elle çoğaltılması önlenir.
 - Route gizleme yetkilendirme sayılmaz; FastAPI rol ve token'ı, PostgreSQL ise RLS/izinleri ayrıca doğrular.
 
@@ -701,6 +745,17 @@ FastAPI ve worker'lar repository adapter'ları arkasında SQLAlchemy 2 ve psycop
 - LLM çağrısı sırasında veritabanı transaction'ı açık tutulmaz.
 - LLM öncesi state okunur; sonuç kısa transaction, version kontrolü ve optimistic concurrency ile uygulanır.
 - Connection pool boyutları platform limitleri ve gerçek yük testine göre sınırlandırılır.
+
+#### Kullanıcı bağlamı ve veritabanı yetki sözleşmesi
+
+- Browser domain yazmalarını FastAPI komutları üzerinden yapar; Supabase Auth işlemleri ve ayrı Storage politikalarıyla sınırlandırılmış medya yükleme bunun dışındadır. Data API üzerinden doğrudan katkı/approval/runtime yazma yetkisi verilmez. İzinli okumalar RLS ile sınırlıdır.
+- FastAPI JWT imzası, issuer, audience ve süreyi doğrular; actor kimliğini doğrulanmış `sub` değerinden alır. Hassas admin komutları güncel, kullanıcı tarafından değiştirilemeyen rol/hesap durumunu ayrıca kontrol eder.
+- SQLAlchemy bağlantısı Supabase kullanıcı oturumunu otomatik taşımaz. Kullanıcı adına katkı/profile işlemlerinde doğrulanmış actor bağlamı yalnız mevcut transaction için veritabanına aktarılır; bu bağlamı okuyan açık RLS politikaları kullanılır. Havuzda session seviyesinde kullanıcı kimliği bırakılmaz.
+- Kullanıcı kapsamlı repository işlemleri actor bağlamı olmadan reddedilir. İstemcinin gönderdiği `user_id`, rol veya ham JWT claim nesnesi güvenilir veritabanı bağlamı olarak kullanılmaz.
+- Kullanıcı kapsamlı bağlantı rolü, yetkili engine komut rolü, worker rolleri ve migration sahibi ayrılır. Runtime rolleri superuser, tablo sahibi veya `BYPASSRLS` olmaz; şema/table/function grant'leri ihtiyaçla sınırlanır. Migration credential'ı servislerde kullanılmaz.
+- World Owner komutu önce uygulama yetkilendirmesinden geçer; ardından sınırlı engine rolüyle transaction yürütülür ve gerçek actor audit'e yazılır. Kullanıcı kimliği ile servis kimliği birbirinin yerine kullanılmaz.
+- GPU/CPU/publisher/maintenance rolleri yalnız görevlerinin gerektirdiği tablolara ve queue işlemlerine erişir. Private şemanın Data API'ye kapalı olması, tek başına bu SQL erişimlerinin yetkilendirildiği anlamına gelmez.
+- Rol/grant/RLS kuralları aynı migration setinde tanımlanır. Testler gerçek runtime rolleriyle çalışır; tablo sahibiyle başarılı sorgu RLS testi sayılmaz. Havuz bağlantısının kullanıcı A'dan B'ye ve kimliksiz isteğe yeniden kullanımında kimlik sızıntısı olmadığı doğrulanır.
 
 ### Alt karar 7 — Queue ve worker organizasyonu: KABUL
 
@@ -957,6 +1012,9 @@ apps/web/src/
 - API contract testleri generated frontend client ile uyumu doğrular.
 - RLS testleri anonymous, contributor, World Owner ve worker rollerini ayrı ayrı kapsar.
 - Scene/memory/relationship akışları sabit model çıktıları kullanan deterministic fixture'larla test edilir; canlı LLM testleri ayrı eval/benchmark grubudur.
+- Yetki testleri Data API, doğrudan SQL, Storage ve private Realtime yollarını ayrı kapsar; bir yoldaki başarılı kontrol diğer yolun güvencesi sayılmaz.
+- Recovery testleri commit öncesi/sonrası crash, tekrar teslim, lease kaybı, geç gelen eski deneme, karakterin askıya alınması ve onayı geri çekilmiş yayın adayını kapsar.
+- Context izolasyonu testleri memory yanında definition, summary, goal, reflection ve transcript içindeki yasak bilgileri de sınar. Adversarial LLM eval'ları deterministic context filtre testlerinden ayrı raporlanır.
 
 ---
 
