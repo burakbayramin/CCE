@@ -106,6 +106,7 @@ SUSPENDED ──► ACTIVE (yalnız World Owner komutu)
 ARCHIVED ──► SUSPENDED (yalnız özel World Owner restore komutu)
 ```
 
+- `APPROVED → ACTIVE` geçişi, `SUSPENDED → ACTIVE` ile aynı kapasite kısıtına tabidir: aktivasyon transaction'ı invariant 12'deki maksimum aktif karakter sınırını doğrular ve aşan aktivasyonu reddeder. Bu kontrol, ilk onay sonrası aktivasyon ile restore sonrası reaktivasyon için simetrik olarak uygulanır.
 - Katkıcı, karar verilmemiş başvurusunu (`SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`) geri çekebilir; durum `WITHDRAWN` olur, canlı state oluşmaz ve audit'e yazılır. `WITHDRAWN` başvuru yeniden açılmaz; yeni başvuru veya yeni revizyon gerekir.
 - `SUSPENDED → ACTIVE` yalnız World Owner komutuyla yapılır. Geri alma öncesinde güncel definition sürümü, moderasyon durumu ve askıya alma nedeni yeniden doğrulanır; gerekli geçmiş sonuç processing'i tamamlanmış olmalı ve aktivasyon transaction'ı aktif karakter limitini korumalıdır. Askıdayken geçen dünya zamanı için geçmiş sosyal deneyim üretilmez; presence ve rutinler AK-002 uzlaştırma kurallarıyla güncel zamana uyarlanır.
 - `ARCHIVED` normal lifecycle içinde terminaldir; tek istisna ayrı ve idempotent bir World Owner restore komutudur. Bu komut aynı karakter kimliğini koruyarak `ARCHIVED → SUSPENDED` geçişi yapar; yeni karakter veya geçmiş kopyası oluşturmaz. Korunmuş definition sürümleri, memory, relationship ve event geçmişi aynı kimlikte kalır; retention ile silinmiş veri yeniden oluşturulmaz. Gerçek actor, gerekçe, önceki/yeni durum ve ilgili definition sürümü audit'e yazılır.
@@ -1105,7 +1106,7 @@ Maksimum 50 karakteri destekleyecek mimari korunurken ilk test dünyası 3–5 a
 #### MVP kapsamı
 
 - Contributor kayıt/giriş, yapılandırılmış karakter taslağı, başvuru, durum, geri bildirim ve revizyon akışı
-- World Owner başvuru inceleme, moderasyon sinyalleri, kabul/ret/değişiklik talebi ve karakter aktivasyonu
+- World Owner başvuru inceleme, moderasyon sinyalleri, kabul/ret/değişiklik talebi ve kapasite sınırına tabi karakter aktivasyonu
 - Aktif karakteri askıya alma/arşivleme ve karakter tanımı ön izlemesi
 - World Owner komutuyla askıdan aktivasyon ve aynı kimliği koruyan özel arşiv restore akışı; restore önce `SUSPENDED` durumuna döner
 - World Owner ile aktif karakter arasında private, streaming chat
@@ -1152,6 +1153,7 @@ MVP'nin tamamlanması için bu akışa ek olarak aşağıdaki kabul koşulları 
 - Turn commit'i öncesinde ve sonrasında katılımcı askıya alma/arşivleme sınanmalıdır: eski üretim yeni turn commit edememeli, önceden commit edilmiş geçerli prefix'in bütün katılımcı etkileri ayrı sonuçlandırma yetkisiyle bir kez tamamlanabilmelidir. Sonuçlandırma pasif karakteri aktive etmemeli veya ona bekleyen chat'i başlatmamalıdır.
 - Definition revizyonu geçmiş olayları sessizce değiştirmemeli; yeni yaşam olayı ile veri hatası düzeltmesi ayrı sınanmalıdır. Düzeltmede kaynak/audit geçmişi korunmalı, geçersizleşmiş bilgi güncel context veya eski onayla public projection'a geri dönmemelidir.
 - Arşiv restore'u aynı karakter kimliği ve korunmuş geçmişle yalnız `SUSPENDED` durumuna dönmeli; retry duplicate karakter/audit sonucu üretmemelidir. Sonraki aktivasyon güncel moderasyon ve kapasite kontrollerine uymalı; eski işler/yayınlar kendiliğinden açılmamalı ve arşiv süresi için deneyim uydurulmamalıdır.
+- Aktif karakter sayısı sınırdayken yeni bir `APPROVED → ACTIVE` veya `SUSPENDED → ACTIVE` denemesi reddedilmeli ve World Owner'a görünür kalmalıdır; limit değişikliği invariant 12 uyarınca audit event üretmelidir.
 - Mood testlerinde yeni etki olmadığında karaktere özgü baseline'a yaklaşma, küçük/güçlü olayların farklı etki süreleri ve çevrimdışı zaman uyarlaması doğrulanmalıdır. Aynı olay/zaman aralığı tekrar işlendiğinde çift etki oluşmamalı; sakinleşme memory veya ilişki güvenini sıfırlamamalıdır.
 - Memory testlerinde önemli deneyimin korunması, gündelik ayrıntının önceliğinin azalması ve ilgili eski kaydın konu yeniden açıldığında bulunabilmesi doğrulanmalıdır. Consolidation kaynak/gizlilik/iddia ayrımını korumalı; dayanağı olmayan ayrıntı gerçek memory'ye dönüşmemeli ve decay fiziksel silme yapmamalıdır.
 - Kişilik testlerinde tekrarlı chat/reflection temel personality, temperament, ana değerler veya bunlardan türetilen baseline'ı otomatik değiştirmemelidir. Buna karşılık kaynak deneyime dayanan ilişki/görüş/goal değişimleri mümkün olmalı; kişiye özgü yakınlık genel kişilik dönüşümü olarak kaydedilmemelidir.
