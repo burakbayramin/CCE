@@ -80,7 +80,7 @@ M6, bilişsel işlemlerin tamamlanma aşamasıdır. Chat/scene'in doğru state i
 - [ ] **M3.5 — Değişiklik:** Onaylı definition revizyonu ile gerçek veri düzeltmesini ayır. Geçmişi yeniden yazmayan correction/superseding kayıtlarını kur; etkilenen türetilmiş kayıtları uzlaştırma işlerini tanımla. MVP'de temel kişilik, core drives ve baseline'ı normal revizyonla değiştirmenin önünü kapat.
 - [ ] **M3.6 — Admin oluşturma/görünüm:** Owner'ın karakter oluşturmasını M2'deki yapılandırılmış form ve aynı doğrulama hattına bağla; kendi onayını gerçek actor ile audit et. Definition/sürüm, moderation, lifecycle ve audit sonucunu göster. Restore eski işler veya kaldırılmış yayınlar için otomatik yeniden başlatma üretmesin.
 
-**Çıkış kanıtı:** Aynı onayın retry'ı duplicate karakter yaratmaz; eski sürüm onayı yeni içeriği aktive etmez; `BLOCK`/olumsuz `REVIEW` engeller. Askı/restore kimliği ve korunmuş geçmişi tutar. Eşzamanlı son kapasiteyi alma yarışı ve yetkisiz lifecycle komutları test edilir.
+**Çıkış kanıtı:** Aynı onayın retry'ı duplicate karakter yaratmaz; eski sürüm onayı yeni içeriği aktive etmez; `BLOCK`/olumsuz `REVIEW` engeller. Askı/restore kimliği ve korunmuş geçmişi tutar. Eşzamanlı son kapasiteyi alma yarışı ve yetkisiz lifecycle komutları test edilir. Aktif karakter limiti doluyken hem `APPROVED → ACTIVE` hem `SUSPENDED → ACTIVE` reddedilir, ret World Owner UI'ında görünür kalır; limit değişikliği audit event üretir.
 
 ## M4 — İş altyapısı ve private admin chat
 
@@ -108,7 +108,7 @@ M6, bilişsel işlemlerin tamamlanma aşamasıdır. Chat/scene'in doğru state i
 - [ ] **M5.6 — Admin kesintisi:** AK-003 durma isteği, mevcut geçerli turn'ün bitişi, sonraki turn yasağı ve chat'e rezervasyon devrini atomik koordine et. Askı/arşiv/güvenlik durdurması halinde daha kısıtlayıcı commit kontrolü uygulansın.
 - [ ] **M5.7 — Dünya UI'ı:** Dahili scene/transcript, katılımcı durumu, bütçe, kesinti nedeni ve processing sonucunu göster. Yeni state'e uygunluk yalnız scene terminal durumundan türetilmesin.
 
-**Çıkış kanıtı:** İki karakter sahnesi fake provider ile tamamlanır ve iki katılımcının etkileri birlikte görünür. Admin mesajı turn üretimi/sınırı/processing sırasında denenir. Sıfır commit iptali, üç ayrı `FAILED` recovery yolu ve kesintili processing retry'ı doğrulanır. Gece–öğlen ve çok günlük offline senaryoları geçmiş deneyim veya kota üretmez.
+**Çıkış kanıtı:** İki karakter sahnesi fake provider ile tamamlanır ve iki katılımcının etkileri birlikte görünür. Admin mesajı turn üretimi/sınırı/processing sırasında denenir. Sıfır commit iptali, üç ayrı `FAILED` recovery yolu ve kesintili processing retry'ı doğrulanır. World Owner/güvenlik kesintisinde hiç turn commit edilmemişse `CANCELLED`, en az bir turn commit edilmişse `INTERRUPTED` sonucu doğrulanır; tek turn doğrulama hatası retry sınırına ulaştığında scene `FAILED` olur. Gece–öğlen ve çok günlük offline senaryoları geçmiş deneyim veya kota üretmez.
 
 ## M6 — Bilişsel state ve gerçek model entegrasyonu
 
