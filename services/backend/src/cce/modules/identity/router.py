@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -8,7 +9,7 @@ from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from cce.modules.identity.authentication import TokenVerifier
-from cce.modules.identity.domain import AuthenticationFailed, AuthenticationUnavailable
+from cce.modules.identity.domain import Actor, AuthenticationFailed, AuthenticationUnavailable
 from cce.modules.identity.repository import identity_context
 
 
@@ -22,18 +23,16 @@ class IdentityError(BaseModel):
     detail: str
 
 
-def identity_router(engine: Engine, verifier: TokenVerifier) -> APIRouter:
-    router = APIRouter(prefix="/identity", tags=["identity"])
+def actor_dependency(verifier: TokenVerifier) -> Callable[..., Actor]:
     bearer = HTTPBearer(auto_error=False)
 
-    def current_identity(
+    def verified_actor(
         credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    ) -> Identity:
+    ) -> Actor:
         try:
             if credentials is None:
                 raise AuthenticationFailed
-            actor = verifier.verify(credentials.credentials)
-            return Identity.model_validate(identity_context(engine, actor))
+            return verifier.verify(credentials.credentials)
         except AuthenticationFailed:
             raise HTTPException(
                 401,
@@ -42,7 +41,22 @@ def identity_router(engine: Engine, verifier: TokenVerifier) -> APIRouter:
                     "WWW-Authenticate": "Bearer",
                 },
             ) from None
-        except (AuthenticationUnavailable, SQLAlchemyError):
+        except AuthenticationUnavailable:
+            raise HTTPException(503, "Identity service unavailable") from None
+
+    return verified_actor
+
+
+def identity_router(engine: Engine, verifier: TokenVerifier) -> APIRouter:
+    router = APIRouter(prefix="/identity", tags=["identity"])
+    verified_actor = actor_dependency(verifier)
+
+    def current_identity(actor: Annotated[Actor, Depends(verified_actor)]) -> Identity:
+        try:
+            return Identity.model_validate(identity_context(engine, actor))
+        except AuthenticationFailed:
+            raise HTTPException(401, "Authentication required") from None
+        except SQLAlchemyError:
             raise HTTPException(503, "Identity service unavailable") from None
 
     responses: dict[int | str, dict[str, Any]] = {
