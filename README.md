@@ -7,6 +7,9 @@ Kalıcı AI karakterlerin ortak dünyası. Ürün davranışı için
 M1, Next.js → FastAPI → yerel Supabase health akışını kurar. Karakter, sohbet ve
 model entegrasyonları sonraki milestone'larda eklenecek.
 
+M2'nin ilk dilimi `/signup`, `/login`, `/contributor` ve `/admin` yollarını ekler.
+Katkı başvurusu, medya ve inceleme akışları henüz uygulanmadı.
+
 ## Araçlar
 
 | Araç | Sabitlenen sürüm |
@@ -114,6 +117,51 @@ dev sunucuları çalışıyorsa önce onları durdur. Image'lar non-root kullan�
 
 ## Doğrulama
 
+### M2 kimlik kurulumu
+
+Yerel Supabase başlatıldıktan sonra `supabase status -o json` çıktısındaki yalnız
+`PUBLISHABLE_KEY` değerini `apps/web/.env.local` içindeki
+`CCE_SUPABASE_PUBLISHABLE_KEY` alanına koy; `CCE_SUPABASE_URL=http://127.0.0.1:54321`
+olmalı. Compose için aynı publishable değişkenini kökteki ignored `.env` içine koy.
+Secret/service-role anahtarı kullanılmaz. Auth yapılandırması eksikse health ekranı
+çalışır, giriş ekranı açıkça yapılandırma eksikliğini gösterir.
+
+Önce `/signup` üzerinden kendi hesabını oluştur. Bütün yeni hesaplar katkıcıdır;
+metadata'daki rol alanı dikkate alınmaz. Portal hesap UUID'sini gösterir. Owner
+ataması yalnız operatör terminalinden, gerçek hesabın UUID'siyle yapılır:
+
+```powershell
+$env:CCE_ADMIN_DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+uv run --project services/backend python scripts/bootstrap_owner.py --user-id <hesap-uuid> --display-name "<dünya içi ad>" --operator "<işlemi yapan operatör>" --reason "İlk World Owner kurulumu"
+Remove-Item Env:CCE_ADMIN_DATABASE_URL
+```
+
+Bu örnekteki credential yalnız yerel Supabase içindir. Yönetim DSN'ini API/web
+container'ına veya kalıcı runtime `.env` dosyasına koyma. Aynı hesaba tekrar atama
+aynı kişi kimliğini döndürür; başka hesaba devretme reddedilir. Başarılı ilk atama,
+insan kimliği ve operatör audit'i tek transaction'dır. Bu oturumda gerçek Owner
+hesabı seçilmedi; test atamaları yalnız geçici test hesaplarında denendi.
+
+API asimetrik ES256/RS256 JWT imzasını, issuer/audience/süreyi doğrular; metadata'ya
+güvenmez. `CCE_AUTH_ISSUER` token'daki dış issuer ile aynı olmalı;
+`CCE_AUTH_JWKS_URL` API'nin eriştiği güvenilir JWKS adresidir. Eski HS256 proje
+anahtarı fallback'i yoktur. Her yetki kontrolünde güncel Auth hesabı, session kaydı
+ve Owner ataması ayrıca doğrulanır. Logout sonrası eski access token kabul edilmez.
+
+Supabase Auth şema grant'lerini özel rollere devretmeye izin vermediğinden yalnız
+`current_identity` ve `bootstrap_world_owner` Auth köprüleri migration runner
+`postgres` sahipliğindedir. Bunlar private, sabit search_path'li, dar kapsamlı
+SECURITY DEFINER fonksiyonlardır. API yalnız ilkini çağırabilir; bootstrap yalnız
+operatöre açıktır. Uygulama tabloları `cce_migrator` sahipliğinde ve FORCE RLS'lidir.
+
+Yerel config'te e-posta onayı kapalıdır; cloud/beta e-posta sağlayıcısı ve gerçek
+teslim/recovery testleri M8 kapısında kalır. PKCE dönüş yolu `/auth/callback`'tir;
+cloud ortamında `CCE_WEB_ORIGIN`, Auth Site URL ve redirect allowlist birlikte
+ayarlanmalıdır. Config değişiklikleri için yerel Supabase'i veriyi koruyarak
+yeniden başlat. Üretimde yerel onaysız kayıt ayarını kopyalama.
+
+### Otomatik kontroller
+
 ```powershell
 uv run --project services/backend ruff check services/backend scripts
 uv run --project services/backend ruff format --check services/backend scripts
@@ -137,6 +185,8 @@ Gerçek yerel DB testleri:
 ```powershell
 $env:CCE_ENVIRONMENT = "test"
 uv run --project services/backend python scripts/setup_local_db.py
+$localStatus = pnpm exec supabase status -o json | ConvertFrom-Json
+$env:CCE_TEST_SUPABASE_PUBLISHABLE_KEY = $localStatus.PUBLISHABLE_KEY
 pnpm exec supabase test db --local
 pnpm exec supabase db lint --local --level error --fail-on error
 uv run --project services/backend pytest services/backend/tests -m integration
@@ -146,6 +196,22 @@ WSL Docker için yukarıdaki Supabase komutlarını Linux CLI ile çalıştır. 
 script'i sadece sabit loopback DB'ye ve açık `local`/`test` ortamında bağlanır.
 pgTAP testleri transaction sonunda geri alınır. Python integration testleri API ve
 CPU-worker kimlikleriyle gerçek bağlantı kurarak rol sınırlarını doğrular.
+
+Kimlik testleri geçici Auth hesapları oluşturur ve yalnız kendi hesaplarını
+temizler. Owner bootstrap testi gerçek Owner atanmış bir DB'de çalıştırılmamalıdır;
+bu durumda test güvenli biçimde başarısız olur. Ayrı test DB kullan.
+
+Web/API çalışırken tarayıcı testi:
+
+```powershell
+pnpm --filter @cce/web exec playwright install chromium
+pnpm --filter @cce/web test:e2e
+```
+
+Windows'ta kurulu Edge kullanılacaksa indirme yerine
+`$env:CCE_BROWSER_CHANNEL = "msedge"` ayarla. E2E, rastgele `cce-e2e-…@example.com`
+test hesabıyla kayıt, SSR cookie, refresh/reload, admin reddi, giriş ve çıkışı
+doğrular; yerelde bu deneme hesabı kalır, gerçek kullanıcıya ait değildir.
 
 Temiz migration tekrarı yalnız bu projeye ayrılmış disposable yerel DB üzerinde:
 

@@ -1,4 +1,5 @@
 import type { HealthSnapshot, HealthState } from "../lib/health";
+import Link from 'next/link';
 
 const labels: Record<HealthState, string> = {
   ok: "Hazır",
@@ -37,6 +38,7 @@ export function HealthPanel({ health }: { health: HealthSnapshot }) {
         </form>
       </section>
       <p className="mt-6 text-sm text-slate-500">M1 · Altyapı kurulumu</p>
+      <Link href="/login" className="mt-4 text-teal-700">Giriş / Katkıcı kaydı</Link>
     </main>
   );
 }

@@ -10,3 +10,5 @@
 **/.env.*
 .artifacts
 **/*.log
+**/test-results
+**/playwright-report

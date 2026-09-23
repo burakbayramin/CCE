@@ -1,0 +1,31 @@
+import { randomUUID } from 'node:crypto';
+import { test, expect } from '@playwright/test';
+
+test('SSR signup, protected admin, login and logout', async ({ page, context }) => {
+  const email = `cce-e2e-${randomUUID()}@example.com`;
+  const password = `CCE-e2e-${randomUUID()}!`;
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto('/signup');
+  await page.getByLabel('E-posta').fill(email);
+  await page.getByLabel('Şifre', { exact: false }).fill(password);
+  await page.getByRole('button', { name: 'Kayıt ol' }).click();
+  await expect(page).toHaveURL(/\/contributor$/);
+  await expect(page.getByText('Oturum ve güncel yetkilerin doğrulandı.')).toBeVisible();
+  const response = await page.reload();
+  expect(response?.headers()['cache-control']).toContain('no-store');
+  const cookies = await context.cookies();
+  expect(cookies.some(cookie => cookie.name.startsWith('sb-'))).toBeTruthy();
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/contributor$/);
+  await page.getByRole('button', { name: 'Çıkış yap' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto('/contributor');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel('E-posta').fill(email);
+  await page.getByLabel('Şifre', { exact: false }).fill(password);
+  await page.getByRole('button', { name: 'Giriş yap' }).click();
+  await expect(page).toHaveURL(/\/contributor$/);
+  await page.getByRole('button', { name: 'Çıkış yap' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});

@@ -4,7 +4,7 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** M1 tamamlandı; yerel ve temiz GitHub CI doğrulamaları geçti. Sıradaki aşama M2; henüz başlamadı.
+**Durum:** M1 tamamlandı. M2 sürüyor; kimlik/SSR/Owner bootstrap dilimi yerelde doğrulandı, temiz CI kontrolü bekleniyor.
 
 **Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 
@@ -192,3 +192,4 @@ Testler davranış ve hata sınırlarını doğrular; yalnız uygulamanın yapt�
 | 2026-09-22 | Implementation planı hazırlandı; uygulama başlamadı | Plan dokümanı; çalışma zamanı testi yapılmadı | M1.1 |
 | 2026-09-23 | M1 repo/bağımlılık temeli, sınırlı DB rolleri, health UI/API, container ve CI yapılandırması eklendi | `d3ea298`, `7d44fbc`; backend 9 unit + 2 DB testi, 15 pgTAP, frontend 5 test, lint/typecheck/build, DB lint/advisors ve container health smoke geçti. Yerel disposable DB reset sonrası migration tekrarlandı; gerçek kullanıcı verisi yoktu. Web portu 3100. | M1.6 — temiz CI koşusunu doğrula; ardından kutuları kapat |
 | 2026-09-23 | M1.1–M1.6 tamamlandı; güncel Action sürümleri SHA ile ve runner Ubuntu 24.04 olarak sabitlendi | `3f49a46`, `fc1179b`; [Foundation CI 35835256902](https://github.com/burakbayramin/CCE/actions/runs/35835256902) üç job başarılı: checks, database, containers. Temiz checkout'ta kilitli kurulum, boş DB migration/reset tekrarı, gerçek rol testleri, OpenAPI drift, build ve web → API → DB smoke geçti. Yerelde iki container non-root ve health akışı doğrulandı. | M2.1 — kimlik ve Owner bootstrap; başlamadı |
+| 2026-09-23 | M2.1 kimlik dilimi ve M2.2'nin JWT/transaction-context temeli uygulandı | Yerelde 20 unit, 4 DB/Auth integration, 27 pgTAP, 7 frontend testi ve gerçek Edge üzerinde kayıt/giriş/çıkış/SSR/admin-red tarayıcı testi geçti. Owner metadata yükseltmesi, ikinci Owner ataması, revoke sonrası eski token ve pooled A → B → kimliksiz erişim sınandı. Gerçek Owner seçilmedi. | Temiz CI; ardından M2.3 başvuru modeli. M2 bütünü tamamlanmadı. |

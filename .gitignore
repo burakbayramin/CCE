@@ -23,3 +23,5 @@ supabase/.branches/
 *.safetensors
 .DS_Store
 dist/
+test-results/
+playwright-report/
