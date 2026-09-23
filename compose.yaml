@@ -1,0 +1,29 @@
+name: cce-foundation
+services:
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    environment:
+      CCE_ENVIRONMENT: local
+      CCE_DATABASE_URL: postgresql+psycopg://cce_api:cce-local-api-only@host.docker.internal:54322/postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 5
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+    environment:
+      CCE_API_BASE_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3100:3100"
+    depends_on:
+      api:
+        condition: service_healthy

@@ -4,9 +4,9 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** Plan hazır; uygulama işleri henüz başlamadı.
+**Durum:** M1 uygulandı; yerel kontroller geçti, temiz GitHub CI doğrulaması sürüyor. M2 başlamadı.
 
-**Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), son inceleme commit'i `6fece92`.
+**Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 
 ## Hedef ve kullanım
 
@@ -16,7 +16,7 @@ Bu plan mimari kararları iş sırasına dönüştürür. Davranışın source o
 
 Her aşama küçük, gözden geçirilebilir commitlerle ilerler. Migration, ilgili backend kuralı ve o kuralın integration testi birlikte ele alınır. Kullanıcıya açılan her akışın UI, API, yetki, hata ve recovery davranışı aynı aşamada tamamlanır. Aşamalar günlük süre taahhüdü değildir; sonraki aşamaya geçiş çıkış koşuluna bağlıdır.
 
-## Yarın: ilk çalışma oturumu
+## İlk çalışma oturumu
 
 İlk günün hedefi M1'dir: temiz checkout'tan kurulabilen, yerel veritabanına bağlanan API, basit web ekranı ve çalışan CI. GPU veya gerçek model ilk günü bloke etmez.
 
@@ -190,3 +190,4 @@ Testler davranış ve hata sınırlarını doğrular; yalnız uygulamanın yapt�
 | Tarih | Tamamlanan iş | Commit / doğrulama | Sıradaki iş |
 | --- | --- | --- | --- |
 | 2026-09-22 | Implementation planı hazırlandı; uygulama başlamadı | Plan dokümanı; çalışma zamanı testi yapılmadı | M1.1 |
+| 2026-09-23 | M1 repo/bağımlılık temeli, sınırlı DB rolleri, health UI/API, container ve CI yapılandırması eklendi | `d3ea298`, `7d44fbc`; backend 9 unit + 2 DB testi, 15 pgTAP, frontend 5 test, lint/typecheck/build, DB lint/advisors ve container health smoke geçti. Yerel disposable DB reset sonrası migration tekrarlandı; gerçek kullanıcı verisi yoktu. Web portu 3100. | M1.6 — temiz CI koşusunu doğrula; ardından kutuları kapat |

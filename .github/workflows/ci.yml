@@ -1,0 +1,93 @@
+name: Foundation CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.3"
+          enable-cache: true
+      - run: uv sync --project services/backend --locked
+      - run: pnpm install --frozen-lockfile
+      - run: uv run --project services/backend ruff check services/backend scripts
+      - run: uv run --project services/backend ruff format --check services/backend scripts
+      - run: uv run --project services/backend mypy services/backend/src
+      - run: uv run --project services/backend pytest services/backend/tests -m 'not integration'
+      - run: pnpm contract:generate
+      - run: git diff --exit-code -- apps/web/src/lib/api/generated/schema.d.ts
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CCE_ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.3"
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --project services/backend --locked
+      - run: pnpm exec supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector
+      - name: Repeat migrations on an empty local database
+        run: |
+          docker stop supabase_realtime_cce-local supabase_auth_cce-local supabase_storage_cce-local supabase_pg_meta_cce-local supabase_rest_cce-local
+          pnpm exec supabase db reset --local --yes
+          docker start supabase_realtime_cce-local supabase_auth_cce-local supabase_storage_cce-local supabase_pg_meta_cce-local supabase_rest_cce-local
+      - run: uv run --project services/backend python scripts/setup_local_db.py
+      - run: pnpm db:test
+      - run: pnpm exec supabase db lint --local --level error --fail-on error
+      - run: uv run --project services/backend pytest services/backend/tests -m integration
+      - run: pnpm build
+      - name: Web to API to DB smoke
+        env:
+          CCE_DATABASE_URL: postgresql+psycopg://cce_api:cce-local-api-only@127.0.0.1:54322/postgres
+          CCE_API_BASE_URL: http://127.0.0.1:8000
+        run: |
+          pnpm dev:api &
+          api_pid=$!
+          pnpm --filter @cce/web start &
+          web_pid=$!
+          trap 'kill "$api_pid" "$web_pid" 2>/dev/null || true' EXIT
+          uv run --project services/backend python scripts/check_health.py
+      - if: always()
+        run: pnpm db:stop
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f infrastructure/docker/backend.Dockerfile -t cce-api:test .
+      - run: docker build -f infrastructure/docker/web.Dockerfile -t cce-web:test .
