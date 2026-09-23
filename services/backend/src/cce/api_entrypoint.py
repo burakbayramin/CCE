@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from cce.core.config import Settings
 from cce.infrastructure.database import create_database, database_ready
 from cce.infrastructure.telemetry import RequestTelemetry, configure_logging
+from cce.modules.identity.authentication import TokenVerifier
+from cce.modules.identity.router import identity_router
 
 
 class Health(BaseModel):
@@ -27,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="CCE Control Plane", version="0.1.0", lifespan=lifespan)
     app.add_middleware(RequestTelemetry)
+    app.include_router(identity_router(engine, TokenVerifier(config)))
 
     @app.get("/health/live", response_model=Health, operation_id="liveness")
     def liveness() -> Health:
