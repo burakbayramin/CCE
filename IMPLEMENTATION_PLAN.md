@@ -4,7 +4,7 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** M1 uygulandı; yerel kontroller geçti, temiz GitHub CI doğrulaması sürüyor. M2 başlamadı.
+**Durum:** M1 tamamlandı; yerel ve temiz GitHub CI doğrulamaları geçti. Sıradaki aşama M2; henüz başlamadı.
 
 **Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 
@@ -47,12 +47,12 @@ M6, bilişsel işlemlerin tamamlanma aşamasıdır. Chat/scene'in doğru state i
 
 **Hedef:** Uygulamanın temiz ortamda kurulması ve tek bir health akışının web → API → DB boyunca çalışması.
 
-- [ ] **M1.1 — Araç ve sürümler:** WADR'deki teknoloji seçimlerini koruyarak Python 3.12+ ailesinden desteklenen bir sürüm, Node ve paket yöneticilerini sabitle. Paket sürümlerini implementation sırasında resmî uyumluluk belgelerinden doğrula; lockfile'ları commit et.
-- [ ] **M1.2 — Minimum repo:** `apps/web`, `services/backend`, `supabase` ve gereken CI/config dosyalarını oluştur. Python paketi `services/backend/src/cce` altında olsun. Henüz kullanılmayan bütün domain modüllerini veya boş adapter klasörlerini topluca üretme.
-- [ ] **M1.3 — DB temeli:** Supabase CLI SQL migration hattını, `public`/`world_private`/`ops_private` sınırlarını ve migration/API/worker rol ayrımını kur. Yerel geliştirme fixture'larını açıkça test ortamıyla sınırla; uygulama migration sahibiyle bağlanmasın.
-- [ ] **M1.4 — Çalışan iskelet:** FastAPI liveness/readiness, web health görünümü, validated config ve correlation kimlikli hassas veri içermeyen logları ekle. Test edilebilir `world_clock` arayüzünü oluştur; tam dünya simülasyonu M5'te gelecek.
-- [ ] **M1.5 — Geliştirme akışı:** `.env.example`, `.gitignore`, README kurulum/çalıştırma adımları ve yerel servis başlatma düzenini ekle. Secret veya gerçek kullanıcı verisi repoya girmesin.
-- [ ] **M1.6 — CI:** Backend lint/typecheck/test, frontend lint/typecheck/test/build ve mevcut migration kontrollerini kur. Kod eklendikçe container build, contract ve gerçek rol testleri aynı pipeline'a dahil edilsin. Production deploy otomatikleşmesin.
+- [x] **M1.1 — Araç ve sürümler:** WADR'deki teknoloji seçimlerini koruyarak Python 3.12+ ailesinden desteklenen bir sürüm, Node ve paket yöneticilerini sabitle. Paket sürümlerini implementation sırasında resmî uyumluluk belgelerinden doğrula; lockfile'ları commit et.
+- [x] **M1.2 — Minimum repo:** `apps/web`, `services/backend`, `supabase` ve gereken CI/config dosyalarını oluştur. Python paketi `services/backend/src/cce` altında olsun. Henüz kullanılmayan bütün domain modüllerini veya boş adapter klasörlerini topluca üretme.
+- [x] **M1.3 — DB temeli:** Supabase CLI SQL migration hattını, `public`/`world_private`/`ops_private` sınırlarını ve migration/API/worker rol ayrımını kur. Yerel geliştirme fixture'larını açıkça test ortamıyla sınırla; uygulama migration sahibiyle bağlanmasın.
+- [x] **M1.4 — Çalışan iskelet:** FastAPI liveness/readiness, web health görünümü, validated config ve correlation kimlikli hassas veri içermeyen logları ekle. Test edilebilir `world_clock` arayüzünü oluştur; tam dünya simülasyonu M5'te gelecek.
+- [x] **M1.5 — Geliştirme akışı:** `.env.example`, `.gitignore`, README kurulum/çalıştırma adımları ve yerel servis başlatma düzenini ekle. Secret veya gerçek kullanıcı verisi repoya girmesin.
+- [x] **M1.6 — CI:** Backend lint/typecheck/test, frontend lint/typecheck/test/build ve mevcut migration kontrollerini kur. Kod eklendikçe container build, contract ve gerçek rol testleri aynı pipeline'a dahil edilsin. Production deploy otomatikleşmesin.
 
 **Çıkış kanıtı:** Temiz checkout ve boş, yalnız teste ayrılmış yerel DB üzerinde kurulum tekrarlanır; migration, health akışı, lint/typecheck ve build geçer. DB erişilemezken readiness uygun hata verir. README komutları fiilen denenmiştir.
 
@@ -191,3 +191,4 @@ Testler davranış ve hata sınırlarını doğrular; yalnız uygulamanın yapt�
 | --- | --- | --- | --- |
 | 2026-09-22 | Implementation planı hazırlandı; uygulama başlamadı | Plan dokümanı; çalışma zamanı testi yapılmadı | M1.1 |
 | 2026-09-23 | M1 repo/bağımlılık temeli, sınırlı DB rolleri, health UI/API, container ve CI yapılandırması eklendi | `d3ea298`, `7d44fbc`; backend 9 unit + 2 DB testi, 15 pgTAP, frontend 5 test, lint/typecheck/build, DB lint/advisors ve container health smoke geçti. Yerel disposable DB reset sonrası migration tekrarlandı; gerçek kullanıcı verisi yoktu. Web portu 3100. | M1.6 — temiz CI koşusunu doğrula; ardından kutuları kapat |
+| 2026-09-23 | M1.1–M1.6 tamamlandı; güncel Action sürümleri SHA ile ve runner Ubuntu 24.04 olarak sabitlendi | `3f49a46`, `fc1179b`; [Foundation CI 35835256902](https://github.com/burakbayramin/CCE/actions/runs/35835256902) üç job başarılı: checks, database, containers. Temiz checkout'ta kilitli kurulum, boş DB migration/reset tekrarı, gerçek rol testleri, OpenAPI drift, build ve web → API → DB smoke geçti. Yerelde iki container non-root ve health akışı doğrulandı. | M2.1 — kimlik ve Owner bootstrap; başlamadı |
