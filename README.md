@@ -8,7 +8,16 @@ M1, Next.js → FastAPI → yerel Supabase health akışını kurar. Karakter, s
 model entegrasyonları sonraki milestone'larda eklenecek.
 
 M2'nin ilk dilimi `/signup`, `/login`, `/contributor` ve `/admin` yollarını ekler.
-Katkı başvurusu, medya ve inceleme akışları henüz uygulanmadı.
+`/contributor/drafts` üzerinden yapılandırılmış taslak, kaydedilmiş ön izleme,
+değiştirilemez başvuru gönderimi ve geri çekme çalışır. Owner incelemesi,
+değişiklik talebi sonrası revizyon ve medya yükleme henüz uygulanmadı.
+Bu dilim canlı karakter oluşturmaz ve henüz otomatik moderasyon yapmaz;
+public contributor açılışı için hazır değildir.
+
+Güncellemeler beklenen sürümle yapılır; eski sürüm 409 döndürür. Oluşturma kimliği
+aynı içerikle yinelendiğinde aynı taslağı döndürür. Katkıcı başına aktif veya son
+24 saatte oluşturulmuş kayıtların birleşimi en fazla 10'dur. Gönderim ve audit
+atomiktir; geri çekilen başvuru yeniden açılmaz.
 
 ## Araçlar
 
@@ -210,7 +219,7 @@ pnpm --filter @cce/web test:e2e
 
 Windows'ta kurulu Edge kullanılacaksa indirme yerine
 `$env:CCE_BROWSER_CHANNEL = "msedge"` ayarla. E2E, rastgele `cce-e2e-…@example.com`
-test hesabıyla kayıt, SSR cookie, refresh/reload, admin reddi, giriş ve çıkışı
+test hesabıyla kayıt, taslak/gönderim/geri çekme, SSR cookie, refresh/reload, admin reddi, giriş ve çıkışı
 doğrular; yerelde bu deneme hesabı kalır, gerçek kullanıcıya ait değildir.
 
 Temiz migration tekrarı yalnız bu projeye ayrılmış disposable yerel DB üzerinde:

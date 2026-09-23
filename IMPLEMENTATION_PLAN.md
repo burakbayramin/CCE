@@ -4,7 +4,7 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** M1 tamamlandı. M2 sürüyor; kimlik/SSR/Owner bootstrap dilimi yerelde doğrulandı, temiz CI kontrolü bekleniyor.
+**Durum:** M1 ve M2.1 tamamlandı. M2 sürüyor; taslak/gönderim/geri çekme dilimi yerelde doğrulandı. Owner incelemesi, revizyon ve medya işleri açık.
 
 **Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 
@@ -60,7 +60,7 @@ M6, bilişsel işlemlerin tamamlanma aşamasıdır. Chat/scene'in doğru state i
 
 **Hedef:** Contributor yalnız kendi taslak/başvurusunu görür; World Owner güvenilir komutlarla inceleme yapar.
 
-- [ ] **M2.1 — Kimlik:** Supabase Auth giriş/kayıt ve SSR oturum akışını kur. World Owner bootstrap'ını güvenilir, audit edilen yönetim yoluyla yap; kullanıcı metadata'sı rol yükseltemesin. Yönetici hesabına bağlı kalıcı dünya içi insan kimliğini ayrıca modelle.
+- [x] **M2.1 — Kimlik:** Supabase Auth giriş/kayıt ve SSR oturum akışını kur. World Owner bootstrap'ını güvenilir, audit edilen yönetim yoluyla yap; kullanıcı metadata'sı rol yükseltemesin. Yönetici hesabına bağlı kalıcı dünya içi insan kimliğini ayrıca modelle.
 - [ ] **M2.2 — Yetki sözleşmesi:** JWT doğrulama, actor bağlamının transaction ile sınırlandırılması, rol/grant/RLS ve Data API yazma sınırlarını uygula. SQLAlchemy havuzunda actor bilgisinin istekler arasında taşınmadığını doğrula.
 - [ ] **M2.3 — Başvuru modeli:** Taslak, değiştirilemez gönderilmiş revizyon, feedback ve audit migration'larını ekle. `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`, `REJECTED`, `APPROVED`, `WITHDRAWN` davranışlarını başvuruya ait tut; canlı karakter lifecycle'ıyla tek enum'da birleştirme.
 - [ ] **M2.4 — Katkı UI/API:** Yapılandırılmış form, ön izleme, gönderim, revizyon, geri çekme ve durum ekranını yap. OpenAPI'den TypeScript client üret; Zod yalnız form UX doğrulaması için kullanılsın. Eşzamanlı geri çekme/onay işlemlerinde yalnız tek geçerli geçiş commit edilsin.
@@ -193,3 +193,5 @@ Testler davranış ve hata sınırlarını doğrular; yalnız uygulamanın yapt�
 | 2026-09-23 | M1 repo/bağımlılık temeli, sınırlı DB rolleri, health UI/API, container ve CI yapılandırması eklendi | `d3ea298`, `7d44fbc`; backend 9 unit + 2 DB testi, 15 pgTAP, frontend 5 test, lint/typecheck/build, DB lint/advisors ve container health smoke geçti. Yerel disposable DB reset sonrası migration tekrarlandı; gerçek kullanıcı verisi yoktu. Web portu 3100. | M1.6 — temiz CI koşusunu doğrula; ardından kutuları kapat |
 | 2026-09-23 | M1.1–M1.6 tamamlandı; güncel Action sürümleri SHA ile ve runner Ubuntu 24.04 olarak sabitlendi | `3f49a46`, `fc1179b`; [Foundation CI 35835256902](https://github.com/burakbayramin/CCE/actions/runs/35835256902) üç job başarılı: checks, database, containers. Temiz checkout'ta kilitli kurulum, boş DB migration/reset tekrarı, gerçek rol testleri, OpenAPI drift, build ve web → API → DB smoke geçti. Yerelde iki container non-root ve health akışı doğrulandı. | M2.1 — kimlik ve Owner bootstrap; başlamadı |
 | 2026-09-23 | M2.1 kimlik dilimi ve M2.2'nin JWT/transaction-context temeli uygulandı | Yerelde 20 unit, 4 DB/Auth integration, 27 pgTAP, 7 frontend testi ve gerçek Edge üzerinde kayıt/giriş/çıkış/SSR/admin-red tarayıcı testi geçti. Owner metadata yükseltmesi, ikinci Owner ataması, revoke sonrası eski token ve pooled A → B → kimliksiz erişim sınandı. Gerçek Owner seçilmedi. | Temiz CI; ardından M2.3 başvuru modeli. M2 bütünü tamamlanmadı. |
+| 2026-09-23 | M2.1 temiz CI doğrulandı | `d288dfd`, `2d32861`; [CI 35864409030](https://github.com/burakbayramin/CCE/actions/runs/35864409030) checks/database/containers başarılı. | M2.3–M2.4 taslak dilimi |
+| 2026-09-23 | M2.3–M2.4 taslak, immutable gönderim, geri çekme, yapılandırılmış form ve audit dilimi uygulandı | Yerelde 20 unit + 7 DB/Auth integration, 27 pgTAP, 7 frontend testi; lint/typecheck, production container build ve Edge uçtan uca akış geçti. İki kullanıcı izolasyonu, eşzamanlı oluşturma/kaydetme, eski sürüm, kota ve revizyon değişmezliği sınandı. Bu dilimin temiz CI sonucu henüz doğrulanmadı. | Önce son push CI sonucunu kontrol et; sonra M2.3–M2.5 inceleme/feedback/revizyon ve M2.6 private medya. Haftalık kullanımda %4 kaldığı ölçülünce kullanıcının %10 sınırı nedeniyle geliştirme durduruldu. |

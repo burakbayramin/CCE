@@ -10,7 +10,8 @@ export function IdentityPanel({ identity }: { identity: components['schemas']['I
       <p className="mt-6">Oturum ve güncel yetkilerin doğrulandı.</p>
       <p className="mt-3 text-sm text-slate-600">Hesap kimliği: {identity.user_id}</p>
       {identity.person_id && <p className="mt-3 text-sm">Dünya içi insan kimliği: {identity.person_id}</p>}
-      <p className="mt-6 text-slate-600">Karakter başvurusu ve inceleme akışları M2’nin sonraki diliminde eklenecek. Sohbet henüz açık değil.</p>
+      <Link href="/contributor/drafts" className="mt-6 block text-teal-700">Karakter taslaklarım ve başvurularım</Link>
+      <p className="mt-6 text-slate-600">Owner incelemesi ve medya akışı henüz açık değil. Sohbet henüz açık değil.</p>
     </>}
     <form action={logout} className="mt-8"><button className="rounded bg-slate-900 px-5 py-3 text-white">Çıkış yap</button></form>
   </main>;
