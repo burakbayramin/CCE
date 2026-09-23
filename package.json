@@ -1,0 +1,23 @@
+{
+  "name": "cce",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "engines": { "node": ">=22.15.0 <23", "pnpm": "10.13.1" },
+  "scripts": {
+    "dev:web": "pnpm --filter @cce/web dev",
+    "dev:api": "uv run --project services/backend uvicorn cce.api_entrypoint:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log",
+    "lint": "pnpm --filter @cce/web lint",
+    "typecheck": "pnpm --filter @cce/web typecheck",
+    "test": "pnpm --filter @cce/web test",
+    "build": "pnpm --filter @cce/web build",
+    "contract:generate": "uv run --project services/backend python scripts/export_openapi.py && pnpm exec openapi-typescript .artifacts/openapi.json -o apps/web/src/lib/api/generated/schema.d.ts",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:migrate": "supabase migration up --local",
+    "db:test": "supabase test db"
+  },
+  "devDependencies": {
+    "supabase": "2.117.0",
+    "openapi-typescript": "7.13.0"
+  }
+}
