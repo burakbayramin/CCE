@@ -2,7 +2,10 @@ from io import BytesIO
 
 import pytest
 from PIL import Image, PngImagePlugin
+from pydantic import SecretStr, ValidationError
 
+from cce.core.config import Settings
+from cce.modules.contributions.avatars import AvatarStorage
 from cce.modules.contributions.images import MAX_AVATAR_BYTES, verify_image
 from cce.modules.contributions.repository import ContributionError
 
@@ -39,11 +42,34 @@ def test_invalid_images_rejected(content: bytes, mime: str, status: int) -> None
     assert error.value.status == status
 
 
-def test_dimensions_and_animation_are_bounded() -> None:
+def test_dimensions_are_bounded() -> None:
     output = BytesIO()
     Image.new("RGB", (2049, 32)).save(output, format="PNG")
     with pytest.raises(ContributionError):
         verify_image(output.getvalue(), "image/png")
+
+
+def test_missing_storage_key_disables_only_media() -> None:
+    config = Settings(
+        database_url=SecretStr("postgresql+psycopg://cce_api:test@127.0.0.1:54322/postgres"),
+        supabase_publishable_key=SecretStr(""),
+    )
+    assert config.supabase_publishable_key is None
+    with pytest.raises(ContributionError) as error:
+        AvatarStorage(config, "Bearer test")
+    assert error.value.status == 503
+
+
+@pytest.mark.parametrize("key", ["sb_secret_test", "legacy-service-jwt"])
+def test_storage_rejects_privileged_key(key: str) -> None:
+    with pytest.raises(ValidationError, match="never a service key"):
+        Settings(
+            database_url=SecretStr("postgresql+psycopg://cce_api:test@127.0.0.1:54322/postgres"),
+            supabase_publishable_key=SecretStr(key),
+        )
+
+
+def test_animation_is_rejected() -> None:
     output = BytesIO()
     Image.new("RGB", (64, 64), "red").save(
         output,

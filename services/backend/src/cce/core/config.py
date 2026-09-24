@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     auth_issuer: str = "http://127.0.0.1:54321/auth/v1"
     auth_jwks_url: str = "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
 
+    @field_validator("supabase_publishable_key")
+    @classmethod
+    def optional_storage_key(cls, value: SecretStr | None) -> SecretStr | None:
+        # A copied .env.example keeps health/auth available before media is configured.
+        return None if value is not None and not value.get_secret_value() else value
+
     @field_validator("engine_database_url")
     @classmethod
     def engine_identity(cls, value: SecretStr | None) -> SecretStr | None:

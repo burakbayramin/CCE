@@ -123,7 +123,8 @@ def test_tampered_pending_object_is_never_attached(accounts, monkeypatch) -> Non
         assert api.get(f"/avatars/{asset}", headers=own).status_code == 404
 
 
-def test_avatar_quota_and_unreserved_storage_path(accounts) -> None:
+@pytest.mark.parametrize("count,age", [(20, "0 days"), (100, "2 days")])
+def test_avatar_quota_and_unreserved_storage_path(accounts, count, age) -> None:
     users, auth = accounts
     own = {"Authorization": f"Bearer {users[0]['token']}"}
     with TestClient(create_app(avatar_settings())) as api:
@@ -135,10 +136,10 @@ def test_avatar_quota_and_unreserved_storage_path(accounts) -> None:
         with psycopg.connect(ADMIN_DSN) as db:
             db.execute(
                 "insert into public.avatar_assets "
-                "(submission_id,user_id,upload_key,sha256,byte_size,width,height) "
-                "select %s,%s,gen_random_uuid(),repeat('a',64),1,64,64 "
-                "from generate_series(1,20)",
-                (UUID(item["id"]), UUID(users[0]["id"])),
+                "(submission_id,user_id,upload_key,sha256,byte_size,width,height,created_at) "
+                "select %s,%s,gen_random_uuid(),repeat('a',64),1,64,64,now()-%s::interval "
+                "from generate_series(1,%s)",
+                (UUID(item["id"]), UUID(users[0]["id"]), age, count),
             )
         assert (
             api.post(
@@ -180,3 +181,42 @@ def test_owner_can_read_contributor_avatar(review_accounts) -> None:
         assert response.status_code == 200
         assert "no-store" in response.headers["cache-control"]
         assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_submit_during_upload_never_changes_committed_revision(accounts, monkeypatch) -> None:
+    users, _ = accounts
+    own = {"Authorization": f"Bearer {users[0]['token']}"}
+    original_store = AvatarStorage.store
+    with TestClient(create_app(avatar_settings())) as api:
+        item = api.post(
+            "/contributions",
+            headers=own,
+            json={"creation_key": str(uuid4()), "definition": proposal()},
+        ).json()
+
+        def submit_while_uploading(storage, asset, image):
+            original_store(storage, asset, image)
+            response = api.post(
+                f"/contributions/{item['id']}/submit",
+                headers=own,
+                json={"expected_version": 1},
+            )
+            assert response.status_code == 200
+
+        monkeypatch.setattr(AvatarStorage, "store", submit_while_uploading)
+        result = api.post(
+            f"/contributions/{item['id']}/avatar",
+            params={"expected_version": 1, "upload_key": str(uuid4())},
+            headers={**own, "Content-Type": "image/png"},
+            content=png(),
+        )
+        assert result.status_code == 409
+        current = api.get(f"/contributions/{item['id']}", headers=own).json()
+        assert current["status"] == "SUBMITTED" and current["avatar_id"] is None
+        history = api.get(f"/contributions/{item['id']}/history", headers=own).json()
+        assert history["revisions"][0]["avatar_id"] is None
+        with psycopg.connect(ADMIN_DSN) as db:
+            assert db.execute(
+                "select status from public.avatar_assets where submission_id=%s",
+                (UUID(item["id"]),),
+            ).fetchone() == ("PENDING",)
