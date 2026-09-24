@@ -3,6 +3,7 @@ import os
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from local_environment import API_DSN, DB_PORT
 from pydantic import SecretStr
 
 from cce.api_entrypoint import create_app
@@ -16,7 +17,7 @@ def test_local_api_role_and_readiness() -> None:
         pytest.fail("Integration tests require explicit CCE_ENVIRONMENT=test and local fixtures")
     with psycopg.connect(
         host="127.0.0.1",
-        port=54322,
+        port=DB_PORT,
         dbname="postgres",
         user="cce_api",
         password="cce-local-api-only",
@@ -34,9 +35,7 @@ def test_local_api_role_and_readiness() -> None:
         connection.rollback()
     config = Settings(
         environment="test",
-        database_url=SecretStr(
-            "postgresql+psycopg://cce_api:cce-local-api-only@127.0.0.1:54322/postgres"
-        ),
+        database_url=SecretStr(API_DSN),
     )
     with TestClient(create_app(config)) as client:
         assert client.get("/health/ready").json() == {"status": "ok"}
@@ -47,7 +46,7 @@ def test_worker_has_separate_restricted_identity() -> None:
         pytest.fail("Integration tests require CCE_ENVIRONMENT=test")
     with psycopg.connect(
         host="127.0.0.1",
-        port=54322,
+        port=DB_PORT,
         dbname="postgres",
         user="cce_worker_cpu",
         password="cce-local-worker-only",

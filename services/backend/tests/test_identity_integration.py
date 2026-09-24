@@ -4,6 +4,7 @@ import httpx
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from local_environment import ADMIN_DSN, API_DSN, AUTH_URL, ENGINE_DSN
 from pydantic import SecretStr
 from sqlalchemy import text
 
@@ -20,9 +21,10 @@ def settings() -> Settings:
     return Settings(
         environment="test",
         db_pool_size=1,
-        database_url=SecretStr(
-            "postgresql+psycopg://cce_api:cce-local-api-only@127.0.0.1:54322/postgres"
-        ),
+        database_url=SecretStr(API_DSN),
+        engine_database_url=SecretStr(ENGINE_DSN),
+        auth_issuer=f"{AUTH_URL}/auth/v1",
+        auth_jwks_url=f"{AUTH_URL}/auth/v1/.well-known/jwks.json",
     )
 
 
@@ -35,7 +37,7 @@ def test_real_auth_owner_bootstrap_and_revoked_session(
     with TestClient(create_app(settings())) as api:
         assert api.get("/identity/me", headers=headers).json()["role"] == "contributor"
         assert api.get("/identity/owner", headers=headers).status_code == 403
-        with psycopg.connect("postgresql://postgres:postgres@127.0.0.1:54322/postgres") as db:
+        with psycopg.connect(ADMIN_DSN) as db:
             # A real Owner must never be reassigned by tests.
             assert db.execute("select count(*) from ops_private.world_owner").fetchone() == (0,)
             args = (UUID(first["id"]), "Test person", "integration-test", "M2 acceptance fixture")

@@ -7,6 +7,7 @@ services:
     environment:
       CCE_ENVIRONMENT: local
       CCE_DATABASE_URL: postgresql+psycopg://cce_api:cce-local-api-only@host.docker.internal:54322/postgres
+      CCE_ENGINE_DATABASE_URL: postgresql+psycopg://cce_engine:cce-local-engine-only@host.docker.internal:54322/postgres
       CCE_AUTH_ISSUER: http://127.0.0.1:54321/auth/v1
       CCE_AUTH_JWKS_URL: http://host.docker.internal:54321/auth/v1/.well-known/jwks.json
     extra_hosts:

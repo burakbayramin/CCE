@@ -65,7 +65,15 @@ class VersionCommand(BaseModel):
 class Submission(BaseModel):
     id: UUID
     user_id: UUID
-    status: Literal["DRAFT", "SUBMITTED", "WITHDRAWN"]
+    status: Literal[
+        "DRAFT",
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "CHANGES_REQUESTED",
+        "REJECTED",
+        "APPROVED",
+        "WITHDRAWN",
+    ]
     version: int
     definition: CharacterProposal
     revision_id: UUID | None
@@ -75,3 +83,50 @@ class Submission(BaseModel):
 
 class ContributionProblem(BaseModel):
     detail: str | list[dict[str, object]]
+
+
+class Revision(BaseModel):
+    id: UUID
+    revision_number: int
+    definition: CharacterProposal
+    created_at: datetime
+
+
+class Feedback(BaseModel):
+    id: UUID
+    revision_id: UUID
+    decision: Literal["CHANGES_REQUESTED", "REJECTED", "APPROVED"]
+    reason: str
+    created_at: datetime
+
+
+class SubmissionHistory(BaseModel):
+    revisions: list[Revision]
+    feedback: list[Feedback]
+
+
+class ReviewCommand(VersionCommand):
+    revision_id: UUID
+    decision: Literal["CHANGES_REQUESTED", "REJECTED", "APPROVED"]
+    reason: str = Field(min_length=1, max_length=2000)
+    review_accepted: bool = False
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class StartReview(VersionCommand):
+    revision_id: UUID
+
+
+class ModerationReport(BaseModel):
+    revision_id: UUID
+    result: Literal["PASS", "REVIEW", "BLOCK", "ERROR"]
+    provider: str
+    policy_version: str
+    is_fixture: bool
+    detail: str
+
+
+class ReviewDetail(BaseModel):
+    submission: Submission
+    history: SubmissionHistory
+    moderation: ModerationReport | None

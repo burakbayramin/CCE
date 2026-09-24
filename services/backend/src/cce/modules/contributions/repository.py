@@ -2,7 +2,13 @@ from uuid import UUID
 
 from sqlalchemy import Connection, text
 
-from cce.modules.contributions.schemas import CharacterProposal, Submission
+from cce.modules.contributions.schemas import (
+    CharacterProposal,
+    Feedback,
+    Revision,
+    Submission,
+    SubmissionHistory,
+)
 from cce.modules.identity.domain import Actor
 
 
@@ -29,12 +35,14 @@ def read_one(connection: Connection, submission_id: UUID, *, lock: bool = False)
     return Submission.model_validate(row)
 
 
-def record_event(connection: Connection, actor: Actor, item: Submission, action: str) -> None:
+def record_event(
+    connection: Connection, actor: Actor, item: Submission, action: str, reason: str | None = None
+) -> None:
     connection.execute(
         text(
             "insert into ops_private.contribution_events "
-            "(submission_id, actor_user_id, action, resulting_version, revision_id) "
-            "values (:id,:actor,:action,:version,:revision)"
+            "(submission_id, actor_user_id, action, resulting_version, revision_id, reason) "
+            "values (:id,:actor,:action,:version,:revision,:reason)"
         ),
         {
             "id": item.id,
@@ -42,6 +50,7 @@ def record_event(connection: Connection, actor: Actor, item: Submission, action:
             "action": action,
             "version": item.version,
             "revision": item.revision_id,
+            "reason": reason,
         },
     )
 
@@ -73,7 +82,8 @@ def create_draft(
     count = connection.execute(
         text(
             "select count(*) from public.character_submissions where user_id=:actor "
-            "and (status in ('DRAFT','SUBMITTED') or created_at > now() - interval '1 day')"
+            "and (status in ('DRAFT','SUBMITTED','UNDER_REVIEW','CHANGES_REQUESTED') "
+            "or created_at > now() - interval '1 day')"
         ),
         {"actor": actor.user_id},
     ).scalar_one()
@@ -103,9 +113,13 @@ def change_draft(
     if item.version != expected:
         raise ContributionError(409, "Başvuru değişmiş; sayfayı yenileyip tekrar dene")
     if action == "WITHDRAW":
-        if item.status != "SUBMITTED":
-            raise ContributionError(409, "Yalnız gönderilmiş başvuru geri çekilebilir")
+        if item.status not in {"SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"}:
+            raise ContributionError(409, "Yalnız karar verilmemiş başvuru geri çekilebilir")
         status = "WITHDRAWN"
+    elif action == "REVISE":
+        if item.status != "CHANGES_REQUESTED":
+            raise ContributionError(409, "Yeni revizyon için değişiklik talebi gerekli")
+        status = "DRAFT"
     else:
         if item.status != "DRAFT":
             raise ContributionError(409, "Gönderilmiş veya geri çekilmiş başvuru değiştirilemez")
@@ -123,8 +137,10 @@ def change_draft(
             raise ContributionError(422, "İsim, tanıtım, geçmiş ve iki uygunluk onayı gerekli")
         revision = connection.execute(
             text(
-                "insert into public.submission_revisions(submission_id, definition) "
-                "values (:id,cast(:definition as jsonb)) returning id"
+                "insert into public.submission_revisions "
+                "(submission_id, definition, revision_number) "
+                "select :id,cast(:definition as jsonb),coalesce(max(revision_number),0)+1 "
+                "from public.submission_revisions where submission_id=:id returning id"
             ),
             {"id": item.id, "definition": proposed.model_dump_json()},
         ).scalar_one()
@@ -144,3 +160,25 @@ def change_draft(
     changed = read_one(connection, item.id)
     record_event(connection, actor, changed, action)
     return changed
+
+
+def read_history(connection: Connection, submission_id: UUID) -> SubmissionHistory:
+    read_one(connection, submission_id)
+    revisions = connection.execute(
+        text(
+            "select * from public.submission_revisions where submission_id=:id "
+            "order by revision_number"
+        ),
+        {"id": submission_id},
+    ).mappings()
+    feedback = connection.execute(
+        text(
+            "select * from public.submission_feedback where submission_id=:id "
+            "order by resulting_version"
+        ),
+        {"id": submission_id},
+    ).mappings()
+    return SubmissionHistory(
+        revisions=[Revision.model_validate(row) for row in revisions],
+        feedback=[Feedback.model_validate(row) for row in feedback],
+    )

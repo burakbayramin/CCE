@@ -10,12 +10,14 @@ from cce.modules.contributions.repository import (
     ContributionError,
     change_draft,
     create_draft,
+    read_history,
     read_one,
 )
 from cce.modules.contributions.schemas import (
     ContributionProblem,
     CreateDraft,
     Submission,
+    SubmissionHistory,
     UpdateDraft,
     VersionCommand,
 )
@@ -103,5 +105,27 @@ def contributions_router(engine: Engine, verifier: TokenVerifier) -> APIRouter:
         connection: Annotated[Connection, Depends(transaction, scope="function")],
     ) -> Submission:
         return change_draft(connection, actor, submission_id, payload.expected_version, "WITHDRAW")
+
+    @router.get(
+        "/{submission_id}/history",
+        response_model=SubmissionHistory,
+        operation_id="contributions_history",
+    )
+    def history(
+        submission_id: UUID,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> SubmissionHistory:
+        return read_history(connection, submission_id)
+
+    @router.post(
+        "/{submission_id}/revise", response_model=Submission, operation_id="contributions_revise"
+    )
+    def revise(
+        submission_id: UUID,
+        payload: VersionCommand,
+        actor: Annotated[Actor, Depends(verified_actor)],
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> Submission:
+        return change_draft(connection, actor, submission_id, payload.expected_version, "REVISE")
 
     return router

@@ -4,9 +4,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from cce.core.config import Settings
 
 
-def create_database(settings: Settings) -> Engine:
+def create_database(settings: Settings, *, owner_commands: bool = False) -> Engine:
+    dsn = settings.engine_database_url if owner_commands else settings.database_url
+    if dsn is None:
+        raise ValueError("Engine database is not configured")
     return create_engine(
-        settings.database_url.get_secret_value(),
+        dsn.get_secret_value(),
         pool_size=settings.db_pool_size,
         max_overflow=0,
         pool_timeout=2,

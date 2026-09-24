@@ -106,3 +106,46 @@ def test_jwks_outage_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(verifier.keys, "get_signing_key_from_jwt", offline)
     with pytest.raises(AuthenticationUnavailable):
         verifier.verify(jwt.encode({}, key, algorithm="ES256"))
+
+
+@pytest.mark.parametrize(
+    "iat_offset,exp_offset,allowed", [(2, 300, True), (10, 300, False), (-30, -10, False)]
+)
+def test_clock_skew_is_bounded(monkeypatch, iat_offset, exp_offset, allowed) -> None:
+    key = ec.generate_private_key(ec.SECP256R1())
+    verifier = TokenVerifier(config())
+    monkeypatch.setattr(
+        verifier.keys, "get_signing_key_from_jwt", lambda _: SimpleNamespace(key=key.public_key())
+    )
+    now = datetime.now(UTC)
+    payload = {
+        "iss": config().auth_issuer,
+        "aud": "authenticated",
+        "role": "authenticated",
+        "sub": str(uuid4()),
+        "session_id": str(uuid4()),
+        "iat": now + timedelta(seconds=iat_offset),
+        "exp": now + timedelta(seconds=exp_offset),
+    }
+    token = jwt.encode(payload, key, algorithm="ES256")
+    if allowed:
+        assert str(verifier.verify(token).user_id) == payload["sub"]
+    else:
+        with pytest.raises(AuthenticationFailed):
+            verifier.verify(token)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+psycopg://postgres:test@127.0.0.1:1/postgres",
+        "postgresql+psycopg://cce_engine:test@127.0.0.1:2/postgres",
+    ],
+)
+def test_owner_engine_requires_restricted_role_and_same_database(url: str) -> None:
+    with pytest.raises(ValueError):
+        Settings(
+            environment="test",
+            database_url=config().database_url,
+            engine_database_url=SecretStr(url),
+        )

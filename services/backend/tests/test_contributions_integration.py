@@ -5,6 +5,7 @@ import httpx
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from local_environment import ADMIN_DSN, API_DSN, AUTH_URL
 from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -21,9 +22,9 @@ pytestmark = pytest.mark.integration
 def settings() -> Settings:
     return Settings(
         environment="test",
-        database_url=SecretStr(
-            "postgresql+psycopg://cce_api:cce-local-api-only@127.0.0.1:54322/postgres"
-        ),
+        database_url=SecretStr(API_DSN),
+        auth_issuer=f"{AUTH_URL}/auth/v1",
+        auth_jwks_url=f"{AUTH_URL}/auth/v1/.well-known/jwks.json",
     )
 
 
@@ -98,7 +99,7 @@ def test_isolation_revision_and_withdrawal(
             "/rest/v1/character_submissions", headers=headers, json={"user_id": users[0]["id"]}
         )
         assert direct.status_code in {401, 403}
-        with psycopg.connect("postgresql://postgres:postgres@127.0.0.1:54322/postgres") as db:
+        with psycopg.connect(ADMIN_DSN) as db:
             assert db.execute(
                 "select count(*) from public.submission_revisions where submission_id=%s",
                 (UUID(item["id"]),),

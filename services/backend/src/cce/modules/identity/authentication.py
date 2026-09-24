@@ -26,6 +26,8 @@ class TokenVerifier:
                 algorithms=["ES256", "RS256"],
                 issuer=self.issuer,
                 audience="authenticated",
+                # Bounded clock skew between Auth and API hosts; expiry remains enforced.
+                leeway=5,
                 options={
                     "require": ["exp", "iat", "iss", "aud", "sub", "session_id", "role"],
                 },

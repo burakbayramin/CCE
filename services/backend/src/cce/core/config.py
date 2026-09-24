@@ -14,9 +14,29 @@ class Settings(BaseSettings):
 
     environment: Literal["local", "test", "staging", "production"] = "local"
     database_url: SecretStr
+    engine_database_url: SecretStr | None = None
     db_pool_size: int = Field(default=3, ge=1, le=10)
     auth_issuer: str = "http://127.0.0.1:54321/auth/v1"
     auth_jwks_url: str = "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
+
+    @field_validator("engine_database_url")
+    @classmethod
+    def engine_identity(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        try:
+            url = make_url(value.get_secret_value())
+        except (ArgumentError, ValueError):
+            raise ValueError("Invalid engine database URL") from None
+        if (
+            url.drivername != "postgresql+psycopg"
+            or url.username != "cce_engine"
+            or not url.host
+            or not url.database
+            or not url.password
+        ):
+            raise ValueError("Owner commands require a separate cce_engine database URL")
+        return value
 
     @field_validator("database_url")
     @classmethod
@@ -33,6 +53,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def disallow_deployed_fixture(self) -> "Settings":
+        if self.engine_database_url:
+            engine_url = make_url(self.engine_database_url.get_secret_value())
+            api_url = make_url(self.database_url.get_secret_value())
+            if (engine_url.host, engine_url.port, engine_url.database) != (
+                api_url.host,
+                api_url.port,
+                api_url.database,
+            ):
+                raise ValueError("API and engine must use the same database")
+            if self.environment in {"staging", "production"} and (
+                engine_url.password or ""
+            ).startswith("cce-local-"):
+                raise ValueError("Local engine fixture cannot be deployed")
         password = make_url(self.database_url.get_secret_value()).password or ""
         if self.environment in {"staging", "production"} and password.startswith("cce-local-"):
             raise ValueError("Local fixture credentials cannot be used in deployed environments")
