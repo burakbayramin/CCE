@@ -17,22 +17,24 @@ export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
   const approvalBlocked = !report || ['BLOCK', 'ERROR'].includes(report.result) || (report.result === 'REVIEW' && !accepted);
 
   async function start() {
-    if (!item.revision_id) return;
+    const revisionId = item.revision_id;
+    if (!revisionId) return;
     setError('');
     startTransition(async () => {
     try {
-      const result = await startReview(item.id, item.version, item.revision_id);
+      const result = await startReview(item.id, item.version, revisionId);
       if (result.data) router.refresh();
       else setError(result.error);
     } catch { setError('İşlem sonucu doğrulanamadı; güncel durumu yenile.'); }
     });
   }
   async function decide(decision: 'CHANGES_REQUESTED' | 'REJECTED' | 'APPROVED') {
-    if (!item.revision_id) return;
+    const revisionId = item.revision_id;
+    if (!revisionId) return;
     setError('');
     startTransition(async () => {
     try {
-      const result = await decideReview(item.id, { expected_version: item.version, revision_id: item.revision_id,
+      const result = await decideReview(item.id, { expected_version: item.version, revision_id: revisionId,
         decision, reason, review_accepted: decision === 'APPROVED' && accepted });
       if (result.data) { setReason(''); setAccepted(false); router.refresh(); }
       else setError(result.error);
