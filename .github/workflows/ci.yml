@@ -77,6 +77,7 @@ jobs:
       - name: Web to API to DB smoke
         env:
           CCE_DATABASE_URL: postgresql+psycopg://cce_api:cce-local-api-only@127.0.0.1:54322/postgres
+          CCE_ENGINE_DATABASE_URL: postgresql+psycopg://cce_engine:cce-local-engine-only@127.0.0.1:54322/postgres
           CCE_API_BASE_URL: http://127.0.0.1:8000
         run: |
           export CCE_SUPABASE_URL=http://127.0.0.1:54321
@@ -87,7 +88,9 @@ jobs:
           web_pid=$!
           trap 'kill "$api_pid" "$web_pid" 2>/dev/null || true' EXIT
           uv run --project services/backend python scripts/check_health.py
-          pnpm --filter @cce/web test:e2e
+          pnpm --filter @cce/web test:e2e identity.spec.ts
+          export CCE_TEST_SUPABASE_PUBLISHABLE_KEY="$CCE_SUPABASE_PUBLISHABLE_KEY"
+          CCE_E2E_REVIEW=1 uv run --project services/backend pytest services/backend/tests/test_review_integration.py -k browser
       - if: always()
         run: pnpm db:stop
 

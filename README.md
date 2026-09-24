@@ -9,10 +9,18 @@ model entegrasyonları sonraki milestone'larda eklenecek.
 
 M2'nin ilk dilimi `/signup`, `/login`, `/contributor` ve `/admin` yollarını ekler.
 `/contributor/drafts` üzerinden yapılandırılmış taslak, kaydedilmiş ön izleme,
-değiştirilemez başvuru gönderimi ve geri çekme çalışır. Owner incelemesi,
-değişiklik talebi sonrası revizyon ve medya yükleme henüz uygulanmadı.
-Bu dilim canlı karakter oluşturmaz ve henüz otomatik moderasyon yapmaz;
+değiştirilemez başvuru gönderimi ve geri çekme çalışır. `/admin/reviews` üzerinden
+Owner incelemesi, gerekçeli değişiklik talebi/ret, revizyon farkları ve onay kapısı
+vardır. Katkıcı değişiklik talebinden sonra yeni taslak açıp yeni immutable revizyon
+gönderebilir; eski gönderim ve feedback korunur. Medya yükleme henüz uygulanmadı.
+Bu dilim canlı karakter oluşturmaz ve gerçek otomatik moderasyon henüz yapılandırılmadı;
 public contributor açılışı için hazır değildir.
+
+Yapılandırılmamış tarama `ERROR` gösterir ve onayı engeller; Owner değişiklik
+isteyebilir veya gerekçeli ret verebilir. `PASS`/`REVIEW`/`BLOCK` sağlayıcı fixture'ları
+yalnız test uygulamasına enjekte edilir ve UI'da etiketlenir. `BLOCK`/`ERROR`
+override edilemez; `REVIEW` için açık olumlu karar gerekir. Onaylanan test revizyonu
+gerçek moderasyon kanıtı değildir; M3 aktivasyon kapısı gerçek taramayı zorunlu tutacaktır.
 
 Güncellemeler beklenen sürümle yapılır; eski sürüm 409 döndürür. Oluşturma kimliği
 aynı içerikle yinelendiğinde aynı taslağı döndürür. Katkıcı başına aktif veya son
@@ -156,6 +164,13 @@ güvenmez. `CCE_AUTH_ISSUER` token'daki dış issuer ile aynı olmalı;
 `CCE_AUTH_JWKS_URL` API'nin eriştiği güvenilir JWKS adresidir. Eski HS256 proje
 anahtarı fallback'i yoktur. Her yetki kontrolünde güncel Auth hesabı, session kaydı
 ve Owner ataması ayrıca doğrulanır. Logout sonrası eski access token kabul edilmez.
+Auth/API saat farkına yalnız 5 saniyelik tolerans tanınır; imza, süre ve güncel
+session kontrolleri atlanmaz. Owner komutları için ayrı `CCE_ENGINE_DATABASE_URL`
+gerekir; aynı DB'deki sınırlı `cce_engine` rolünü kullanır, `cce_api` bu role geçemez.
+Mevcut yerel kurulumda güncel migration'dan sonra `scripts/setup_local_db.py`'yi
+yeniden çalıştır; yeni engine fixture credential'ını yalnız backend ortamına ekle.
+Supabase rehberindeki ayrı grant/RLS sınırları uygulanır ve Owner işleminde gerçek
+actor, gerekçe, incelenen revizyon ve sonuç sürümü atomik audit'e yazılır.
 
 Supabase Auth şema grant'lerini özel rollere devretmeye izin vermediğinden yalnız
 `current_identity` ve `bootstrap_world_owner` Auth köprüleri migration runner
@@ -209,6 +224,42 @@ CPU-worker kimlikleriyle gerçek bağlantı kurarak rol sınırlarını doğrula
 Kimlik testleri geçici Auth hesapları oluşturur ve yalnız kendi hesaplarını
 temizler. Owner bootstrap testi gerçek Owner atanmış bir DB'de çalıştırılmamalıdır;
 bu durumda test güvenli biçimde başarısız olur. Ayrı test DB kullan.
+
+### Gerçek Owner hesabını koruyan ayrı test stack'i
+
+Günlük kullanılan `cce-local` veritabanında Owner testlerini çalıştırma veya reset yapma.
+İkinci stack `cce-integration`, Auth 55321 ve DB 55322 portlarını kullanır:
+
+```powershell
+New-Item -ItemType Directory -Force .artifacts/integration/supabase | Out-Null
+Copy-Item infrastructure/testing/supabase/config.toml .artifacts/integration/supabase/config.toml
+Copy-Item supabase/migrations .artifacts/integration/supabase -Recurse -Force
+Copy-Item supabase/tests .artifacts/integration/supabase -Recurse -Force
+pnpm exec supabase start --workdir .artifacts/integration --exclude studio,imgproxy,edge-runtime,logflare,vector
+pnpm exec supabase migration up --workdir .artifacts/integration --local
+$env:CCE_ENVIRONMENT = "test"
+$env:CCE_ISOLATED_TEST_STACK = "1"
+uv run --project services/backend python scripts/setup_local_db.py --isolated-test-stack
+$localStatus = pnpm exec supabase status --workdir .artifacts/integration -o json | ConvertFrom-Json
+$env:CCE_TEST_SUPABASE_PUBLISHABLE_KEY = $localStatus.PUBLISHABLE_KEY
+uv run --project services/backend pytest services/backend/tests
+pnpm exec supabase test db --workdir .artifacts/integration --local
+```
+
+WSL-only Docker'da CLI için yukarıdaki Linux önekini kullan. Migration/test değişince
+kopyaları yenile; kaynak daima kökteki `supabase/migrations` ve `supabase/tests` olur.
+Bu testler yalnız kendi rastgele hesaplarını temizler; Owner hesabını devretmez.
+
+İnceleme tarayıcı testi için API/web'i aynı test stack'ine bağla. API örneği: port
+8001, `CCE_ENVIRONMENT=test`, API/engine DSN'leri 55322, Auth issuer/JWKS 55321;
+web örneği: port 3101, `CCE_API_BASE_URL=http://127.0.0.1:8001`,
+`CCE_SUPABASE_URL=http://127.0.0.1:55321`, test publishable key ve
+`CCE_WEB_ORIGIN=http://127.0.0.1:3101`. Ardından `CCE_E2E_REVIEW=1` ve
+`CCE_E2E_BASE_URL=http://127.0.0.1:3101` ile
+`pytest services/backend/tests/test_review_integration.py -k browser` çalıştır.
+Python fixture'ı iki geçici hesabı/Owner'ı oluşturur, browser'a yalnız proses
+ortamıyla iletir ve test sonunda temizler. CI aynı akışı boş 54321/54322 stack'inde
+otomatik çalıştırır. Ayrı normal tarayıcı testinde bu fixture testi atlanır.
 
 Web/API çalışırken tarayıcı testi:
 

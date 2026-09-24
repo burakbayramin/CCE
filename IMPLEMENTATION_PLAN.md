@@ -4,7 +4,7 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** M1 ve M2.1 tamamlandı. M2 sürüyor; taslak/gönderim/geri çekme dilimi yerelde doğrulandı. Owner incelemesi, revizyon ve medya işleri açık.
+**Durum:** M1 ve M2.1 tamamlandı. Taslak/gönderim/geri çekme temiz CI'da doğrulandı. M2 inceleme/feedback/revizyon dilimi uygulandı; son CI ve tarayıcı doğrulaması bekleniyor. Medya işi açık.
 
 **Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 
@@ -195,3 +195,5 @@ Testler davranış ve hata sınırlarını doğrular; yalnız uygulamanın yapt�
 | 2026-09-23 | M2.1 kimlik dilimi ve M2.2'nin JWT/transaction-context temeli uygulandı | Yerelde 20 unit, 4 DB/Auth integration, 27 pgTAP, 7 frontend testi ve gerçek Edge üzerinde kayıt/giriş/çıkış/SSR/admin-red tarayıcı testi geçti. Owner metadata yükseltmesi, ikinci Owner ataması, revoke sonrası eski token ve pooled A → B → kimliksiz erişim sınandı. Gerçek Owner seçilmedi. | Temiz CI; ardından M2.3 başvuru modeli. M2 bütünü tamamlanmadı. |
 | 2026-09-23 | M2.1 temiz CI doğrulandı | `d288dfd`, `2d32861`; [CI 35864409030](https://github.com/burakbayramin/CCE/actions/runs/35864409030) checks/database/containers başarılı. | M2.3–M2.4 taslak dilimi |
 | 2026-09-23 | M2.3–M2.4 taslak, immutable gönderim, geri çekme, yapılandırılmış form ve audit dilimi uygulandı | Yerelde 20 unit + 7 DB/Auth integration, 27 pgTAP, 7 frontend testi; lint/typecheck, production container build ve Edge uçtan uca akış geçti. İki kullanıcı izolasyonu, eşzamanlı oluşturma/kaydetme, eski sürüm, kota ve revizyon değişmezliği sınandı. Bu dilimin temiz CI sonucu henüz doğrulanmadı. | Önce son push CI sonucunu kontrol et; sonra M2.3–M2.5 inceleme/feedback/revizyon ve M2.6 private medya. Haftalık kullanımda %4 kaldığı ölçülünce kullanıcının %10 sınırı nedeniyle geliştirme durduruldu. |
+| 2026-09-24 | Taslak diliminin temiz CI sonucu doğrulandı | `7f0ba01`, `4cd7681`; [CI 35866586457](https://github.com/burakbayramin/CCE/actions/runs/35866586457) checks/database/containers başarılı. | M2 inceleme dilimi |
+| 2026-09-24 | Ayrı engine yetkisi, Owner inceleme/feedback, immutable revizyon geçmişi, değişiklik talebi ve moderasyon onay kapısı eklendi | Ayrı `cce-integration` stack'inde 38 backend testi ve 39 pgTAP başarılı; frontend 7 test, typecheck/lint/build geçti. Gerçek yerel Owner/verileri korunuyor. Windows/WSL saat farkından kaynaklı token hatası doğrulandı ve sınırlı 5 saniye tolerans test edildi. İki oturumlu inceleme tarayıcı testi CI'a eklendi; sonucu henüz doğrulanmadı. | Son CI/tarayıcı doğrulaması; ardından M2.6 private avatar. Gerçek moderasyon sağlayıcısı M3 karar kapısında; M2 bütünü tamamlanmadı. |

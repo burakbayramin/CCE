@@ -79,7 +79,7 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     } catch { setError('İşlem sonucu doğrulanamadı; içeriğin korunuyor. Yeniden dene.'); }
     finally { setBusy(false); }
   }
-  async function transition(action: 'submit' | 'withdraw') {
+  async function transition(action: 'submit' | 'withdraw' | 'revise') {
     if (!current) return;
     setBusy(true); setError('');
     try {
@@ -91,7 +91,7 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
   }
   return <>
     <p className="mt-4">Durum: <strong>{current?.status ?? 'Yeni taslak'}</strong> · Sürüm: {current?.version ?? '—'}</p>
-    <p className="mt-3 text-sm text-slate-600">Görsel yükleme ve Owner incelemesi henüz açık değil. Başvuru otomatik moderasyondan geçmedi; canlı karakter oluşturmaz. Ham system prompt ve runtime state kabul edilmez.</p>
+    <p className="mt-3 text-sm text-slate-600">Görsel yükleme ve karakter aktivasyonu henüz açık değil. Gönderilmiş revizyon değiştirilemez; Owner değişiklik istediğinde yeni taslak açabilirsin. Ham system prompt ve runtime state kabul edilmez.</p>
     {error && <p role="alert" className="mt-4 text-red-800">{error}</p>}
     <form onSubmit={handleSubmit(save)} className="mt-8 space-y-5">
       <fieldset disabled={!editable || busy} className="space-y-5 disabled:opacity-75">
@@ -107,7 +107,9 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     </form>
     {(preview || current) && <details className="mt-8" open={!editable}><summary>Kaydedilmiş karakter ön izlemesi</summary><h2 className="mt-3 text-xl">{(preview ?? current?.definition)?.name}</h2><p className="my-3 whitespace-pre-wrap">{(preview ?? current?.definition)?.introduction}</p><p className="whitespace-pre-wrap">{(preview ?? current?.definition)?.backstory}</p></details>}
     {current?.status === 'DRAFT' && <button disabled={busy || isDirty} onClick={() => transition('submit')} className="mt-6 rounded bg-teal-800 px-5 py-3 text-white disabled:opacity-50">İncelemeye gönder</button>}
-    {current?.status === 'SUBMITTED' && <button disabled={busy} onClick={() => transition('withdraw')} className="mt-6 rounded border px-5 py-3">Başvuruyu geri çek</button>}
+    {current?.status === 'CHANGES_REQUESTED' && <button disabled={busy} onClick={() => transition('revise')} className="mt-6 mr-4 rounded bg-teal-800 px-5 py-3 text-white">Yeni revizyon taslağı aç</button>}
+    {current && ['SUBMITTED', 'UNDER_REVIEW', 'CHANGES_REQUESTED'].includes(current.status) && <button disabled={busy} onClick={() => transition('withdraw')} className="mt-6 rounded border px-5 py-3">Başvuruyu geri çek</button>}
+    {current?.status === 'APPROVED' && <p className="mt-6">Bu revizyon onaylandı; henüz canlı karakter oluşturulmadı.</p>}
     {current?.status === 'WITHDRAWN' && <p className="mt-6">Bu başvuru yeniden açılamaz; yeni taslak oluşturabilirsin.</p>}
   </>;
 }

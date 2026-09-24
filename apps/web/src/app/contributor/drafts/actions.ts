@@ -10,8 +10,8 @@ export async function saveDraft(definition: Proposal, creationKey: string, id?: 
   return result;
 }
 
-export async function transitionDraft(id: string, version: number, action: 'submit' | 'withdraw') {
-  if (!['submit', 'withdraw'].includes(action)) return { data: null, error: 'Geçersiz işlem' } as const;
+export async function transitionDraft(id: string, version: number, action: 'submit' | 'withdraw' | 'revise') {
+  if (!['submit', 'withdraw', 'revise'].includes(action)) return { data: null, error: 'Geçersiz işlem' } as const;
   const result = await contributionApi<Submission>(`/${encodeURIComponent(id)}/${action}`, 'POST', { expected_version: version });
   if (result.data) revalidatePath('/contributor/drafts');
   return result;
