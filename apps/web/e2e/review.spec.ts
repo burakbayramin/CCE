@@ -6,6 +6,8 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
   const contributorContext = await browser.newContext();
   const owner = await ownerContext.newPage();
   const contributor = await contributorContext.newPage();
+  owner.setDefaultTimeout(10000);
+  contributor.setDefaultTimeout(10000);
   const base = process.env.CCE_E2E_BASE_URL || 'http://127.0.0.1:3100';
   async function login(page: Page, email: string, password: string) {
     await page.goto(`${base}/login`);
@@ -58,7 +60,7 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await expect(contributor.getByText('Bu başvuruyu test kapsamında reddediyorum.', { exact: true })).toBeVisible();
     await expect(contributor.getByLabel('İsim', { exact: true })).toBeDisabled();
   } finally {
-    await ownerContext.close();
-    await contributorContext.close();
+    // Cleanup must not hide the failing interaction when Playwright has timed out.
+    await Promise.allSettled([ownerContext.close(), contributorContext.close()]);
   }
 });
