@@ -1,42 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { decideReview, startReview } from '../../app/admin/reviews/actions';
 import type { ReviewDetail } from '../../lib/contributions';
 import { ProposalHistory } from './history';
 
 export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
-  const [current, setCurrent] = useState(detail);
   const [reason, setReason] = useState('');
   const [accepted, setAccepted] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, startTransition] = useTransition();
   const [error, setError] = useState('');
   const router = useRouter();
-  const item = current.submission;
-  const report = current.moderation;
+  const item = detail.submission;
+  const report = detail.moderation;
   const approvalBlocked = !report || ['BLOCK', 'ERROR'].includes(report.result) || (report.result === 'REVIEW' && !accepted);
 
   async function start() {
     if (!item.revision_id) return;
-    setBusy(true); setError('');
+    setError('');
+    startTransition(async () => {
     try {
       const result = await startReview(item.id, item.version, item.revision_id);
-      if (result.data) { setCurrent(result.data); router.refresh(); }
+      if (result.data) router.refresh();
       else setError(result.error);
     } catch { setError('İşlem sonucu doğrulanamadı; güncel durumu yenile.'); }
-    finally { setBusy(false); }
+    });
   }
   async function decide(decision: 'CHANGES_REQUESTED' | 'REJECTED' | 'APPROVED') {
     if (!item.revision_id) return;
-    setBusy(true); setError('');
+    setError('');
+    startTransition(async () => {
     try {
       const result = await decideReview(item.id, { expected_version: item.version, revision_id: item.revision_id,
         decision, reason, review_accepted: decision === 'APPROVED' && accepted });
-      if (result.data) { setCurrent({ ...current, submission: result.data }); router.refresh(); }
+      if (result.data) { setReason(''); setAccepted(false); router.refresh(); }
       else setError(result.error);
     } catch { setError('Karar sonucu doğrulanamadı; güncel durumu yenile.'); }
-    finally { setBusy(false); }
+    });
   }
   return <>
     <h2 className="mt-6 text-2xl">{item.definition.name}</h2>
@@ -63,6 +64,6 @@ export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
       {approvalBlocked && <p>Moderasyon koşulları sağlanmadan onay verilemez.</p>}
     </fieldset>}
     {item.status === 'APPROVED' && <p className="mt-6">Revizyon onaylandı. Karakter aktivasyonu bu aşamada yapılmaz.</p>}
-    <ProposalHistory history={current.history} />
+    <ProposalHistory history={detail.history} />
   </>;
 }

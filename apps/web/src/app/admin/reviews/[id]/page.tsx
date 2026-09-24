@@ -12,6 +12,6 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
   return <main className="mx-auto max-w-3xl px-6 py-16">
     <Link href="/admin/reviews">İnceleme listesi</Link>
     <h1 className="mt-6 text-3xl">Başvuru incelemesi</h1>
-    {result.data ? <ReviewPanel key={`${result.data.submission.id}:${result.data.submission.version}`} detail={result.data} /> : <p role="alert">{result.error}</p>}
+    {result.data ? <ReviewPanel key={result.data.submission.id} detail={result.data} /> : <p role="alert">{result.error}</p>}
   </main>;
 }
