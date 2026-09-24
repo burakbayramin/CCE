@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     environment: Literal["local", "test", "staging", "production"] = "local"
     database_url: SecretStr
     engine_database_url: SecretStr | None = None
+    storage_url: str = "http://127.0.0.1:54321"
+    supabase_publishable_key: SecretStr | None = None
     db_pool_size: int = Field(default=3, ge=1, le=10)
     auth_issuer: str = "http://127.0.0.1:54321/auth/v1"
     auth_jwks_url: str = "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
@@ -69,7 +71,7 @@ class Settings(BaseSettings):
         password = make_url(self.database_url.get_secret_value()).password or ""
         if self.environment in {"staging", "production"} and password.startswith("cce-local-"):
             raise ValueError("Local fixture credentials cannot be used in deployed environments")
-        for address in (self.auth_issuer, self.auth_jwks_url):
+        for address in (self.auth_issuer, self.auth_jwks_url, self.storage_url):
             url = urlsplit(address)
             if not url.hostname or url.username or url.password or url.query or url.fragment:
                 raise ValueError("Auth URLs must not contain credentials, queries or fragments")
@@ -79,4 +81,12 @@ class Settings(BaseSettings):
                 and url.hostname in {"127.0.0.1", "localhost", "host.docker.internal"}
             ):
                 raise ValueError("Auth URLs require HTTPS outside local/test")
+        storage = urlsplit(self.storage_url)
+        if storage.path not in {"", "/"}:
+            raise ValueError("Storage URL must be an origin")
+        if (
+            self.supabase_publishable_key
+            and not self.supabase_publishable_key.get_secret_value().startswith("sb_publishable_")
+        ):
+            raise ValueError("Storage requires a publishable key, never a service key")
         return self

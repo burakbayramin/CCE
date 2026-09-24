@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from cce.core.config import Settings
 from cce.infrastructure.database import create_database, database_ready
 from cce.infrastructure.telemetry import RequestTelemetry, configure_logging
+from cce.modules.contributions.avatar_router import avatar_router
 from cce.modules.contributions.moderation import ModerationProvider, UnavailableModeration
 from cce.modules.contributions.review_router import review_router
 from cce.modules.contributions.router import contributions_router
@@ -44,6 +45,7 @@ def create_app(
     verifier = TokenVerifier(config)
     app.include_router(identity_router(engine, verifier))
     app.include_router(contributions_router(engine, verifier))
+    app.include_router(avatar_router(config, engine, owner_engine, verifier))
     app.include_router(
         review_router(
             engine,

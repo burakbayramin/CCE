@@ -17,6 +17,20 @@ class TestAccount(dict[str, str]):
 
 
 @pytest.fixture
+def review_accounts(accounts: tuple[list[dict[str, str]], httpx.Client]):
+    users, auth = accounts
+    with psycopg.connect(ADMIN_DSN) as db:
+        assert db.execute("select count(*) from ops_private.world_owner").fetchone() == (0,), (
+            "Use the isolated test stack; never replace a real Owner"
+        )
+        db.execute(
+            "select ops_private.bootstrap_world_owner(%s,%s,%s,%s)",
+            (UUID(users[0]["id"]), "Review test Owner", "integration-test", "Review fixture"),
+        )
+    return users, auth
+
+
+@pytest.fixture
 def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
     if os.environ.get("CCE_ENVIRONMENT") != "test":
         pytest.fail("Identity integration requires isolated local test fixtures")
@@ -57,6 +71,25 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                 for user in users:
                     target = UUID(user["id"])
                     db.execute("set constraints submission_revision_owner_fk deferred")
+                    db.execute("set constraints submission_avatar_fk deferred")
+                    objects = db.execute(
+                        "select object_name from public.avatar_assets where user_id=%s", (target,)
+                    ).fetchall()
+                    if objects:
+                        cleanup_key = os.environ.get("CCE_TEST_STORAGE_ADMIN_KEY")
+                        assert cleanup_key, "Storage fixtures require CCE_TEST_STORAGE_ADMIN_KEY"
+                        assert all(row[0].startswith(f"{target}/") for row in objects)
+                        removed = httpx.request(
+                            "DELETE",
+                            f"{AUTH_URL}/storage/v1/object/cce-avatars",
+                            headers={
+                                "apikey": cleanup_key,
+                                "Authorization": f"Bearer {cleanup_key}",
+                            },
+                            json={"prefixes": [row[0] for row in objects]},
+                            timeout=10,
+                        )
+                        assert removed.status_code == 200
                     db.execute(
                         "delete from public.submission_feedback "
                         "where actor_user_id=%s or submission_id in "
@@ -79,6 +112,7 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                         "(select id from public.character_submissions where user_id=%s)",
                         (target,),
                     )
+                    db.execute("delete from public.avatar_assets where user_id=%s", (target,))
                     db.execute(
                         "delete from public.character_submissions where user_id=%s", (target,)
                     )

@@ -138,11 +138,11 @@ def change_draft(
         revision = connection.execute(
             text(
                 "insert into public.submission_revisions "
-                "(submission_id, definition, revision_number) "
-                "select :id,cast(:definition as jsonb),coalesce(max(revision_number),0)+1 "
+                "(submission_id, definition, revision_number, avatar_id) "
+                "select :id,cast(:definition as jsonb),coalesce(max(revision_number),0)+1,:avatar "
                 "from public.submission_revisions where submission_id=:id returning id"
             ),
-            {"id": item.id, "definition": proposed.model_dump_json()},
+            {"id": item.id, "definition": proposed.model_dump_json(), "avatar": item.avatar_id},
         ).scalar_one()
     connection.execute(
         text(

@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select ok((select not public and file_size_limit=524288 and allowed_mime_types=array['image/png'] from storage.buckets where id='cce-avatars'), 'Private bounded PNG bucket');
+select ok((select relforcerowsecurity from pg_class where oid='public.avatar_assets'::regclass), 'Avatar assets FORCE RLS');
+select ok(not has_table_privilege('authenticated','public.avatar_assets','INSERT'), 'No Data API asset reservation');
+select ok(not has_table_privilege('anon','public.avatar_assets','SELECT'), 'No anonymous asset metadata');
+select ok(not has_table_privilege('cce_api','public.avatar_assets','DELETE'), 'No runtime asset deletion');
+select ok(not has_column_privilege('cce_api','public.avatar_assets','sha256','UPDATE'), 'Asset digest is immutable');
+select ok(not has_column_privilege('cce_engine','public.character_submissions','avatar_id','UPDATE'), 'Owner review cannot change avatar');
+select ok(not has_table_privilege('cce_api','public.submission_revisions','UPDATE'), 'Submitted avatar reference is immutable');
+select ok(not has_function_privilege('anon','ops_private.avatar_storage_access(text,boolean)','EXECUTE'), 'Anonymous cannot use Storage gate');
+select is((select count(*)::integer from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'cce_avatar_%' and cmd in ('UPDATE','DELETE','ALL')), 0, 'No avatar overwrite or delete policies');
+select * from finish();
+rollback;

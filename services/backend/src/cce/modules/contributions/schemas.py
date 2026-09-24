@@ -77,6 +77,7 @@ class Submission(BaseModel):
     version: int
     definition: CharacterProposal
     revision_id: UUID | None
+    avatar_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -89,6 +90,7 @@ class Revision(BaseModel):
     id: UUID
     revision_number: int
     definition: CharacterProposal
+    avatar_id: UUID | None = None
     created_at: datetime
 
 

@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from uuid import UUID, uuid4
 
-import httpx
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
@@ -38,20 +37,6 @@ class FixtureModeration:
             True,
             "Deterministic test result; not a content safety scan.",
         )  # type: ignore[arg-type]
-
-
-@pytest.fixture
-def review_accounts(accounts: tuple[list[dict[str, str]], httpx.Client]):
-    users, auth = accounts
-    with psycopg.connect(ADMIN_DSN) as db:
-        assert db.execute("select count(*) from ops_private.world_owner").fetchone() == (0,), (
-            "Use the isolated test stack; never replace a real Owner"
-        )
-        db.execute(
-            "select ops_private.bootstrap_world_owner(%s,%s,%s,%s)",
-            (UUID(users[0]["id"]), "Review test Owner", "integration-test", "Review fixture"),
-        )
-    return users, auth
 
 
 def headers(user: dict[str, str]) -> dict[str, str]:
