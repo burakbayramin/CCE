@@ -4,7 +4,7 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** M1 ve M2.1 tamamlandı. Taslak/gönderim/geri çekme temiz CI'da doğrulandı. M2 inceleme/feedback/revizyon dilimi uygulandı; son CI ve tarayıcı doğrulaması bekleniyor. Medya işi açık.
+**Durum:** M1 ve M2.1 tamamlandı. M2 inceleme/feedback/revizyon ve private avatar dilimleri uygulandı; son birleşik CI ve iki oturumlu tarayıcı doğrulaması bekleniyor. Bu kanıt gelmeden M2 kapatılmadı.
 
 **Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { decideReview, startReview } from '../../app/admin/reviews/actions';
 import type { ReviewDetail } from '../../lib/contributions';
 import { ProposalHistory } from './history';
+import { PrivateAvatar } from '../../components/private-avatar';
 
 export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
   const [reason, setReason] = useState('');
@@ -43,6 +44,7 @@ export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
   }
   return <>
     <h2 className="mt-6 text-2xl">{item.definition.name}</h2>
+    <PrivateAvatar id={item.avatar_id} />
     <p className="mt-3">Durum: <strong>{item.status}</strong> · Sürüm: {item.version}</p>
     <p className="mt-2 break-all text-sm">İncelenen revizyon: {item.revision_id ?? 'Henüz gönderilmedi'}</p>
     <p className="mt-4 whitespace-pre-wrap">{item.definition.introduction}</p>

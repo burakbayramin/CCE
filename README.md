@@ -211,6 +211,7 @@ $env:CCE_ENVIRONMENT = "test"
 uv run --project services/backend python scripts/setup_local_db.py
 $localStatus = pnpm exec supabase status -o json | ConvertFrom-Json
 $env:CCE_TEST_SUPABASE_PUBLISHABLE_KEY = $localStatus.PUBLISHABLE_KEY
+$env:CCE_TEST_STORAGE_ADMIN_KEY = $localStatus.SERVICE_ROLE_KEY
 pnpm exec supabase test db --local
 pnpm exec supabase db lint --local --level error --fail-on error
 uv run --project services/backend pytest services/backend/tests -m integration
@@ -242,6 +243,7 @@ $env:CCE_ISOLATED_TEST_STACK = "1"
 uv run --project services/backend python scripts/setup_local_db.py --isolated-test-stack
 $localStatus = pnpm exec supabase status --workdir .artifacts/integration -o json | ConvertFrom-Json
 $env:CCE_TEST_SUPABASE_PUBLISHABLE_KEY = $localStatus.PUBLISHABLE_KEY
+$env:CCE_TEST_STORAGE_ADMIN_KEY = $localStatus.SERVICE_ROLE_KEY
 uv run --project services/backend pytest services/backend/tests
 pnpm exec supabase test db --workdir .artifacts/integration --local
 ```
@@ -249,9 +251,14 @@ pnpm exec supabase test db --workdir .artifacts/integration --local
 WSL-only Docker'da CLI için yukarıdaki Linux önekini kullan. Migration/test değişince
 kopyaları yenile; kaynak daima kökteki `supabase/migrations` ve `supabase/tests` olur.
 Bu testler yalnız kendi rastgele hesaplarını temizler; Owner hesabını devretmez.
+`CCE_TEST_STORAGE_ADMIN_KEY` yalnız disposable yerel testlerin oluşturduğu dosyaları
+temizlemek içindir; uygulama runtime'ına, web'e veya herhangi bir `NEXT_PUBLIC_`
+değişkenine verilmez. Fixture yalnız kendi rastgele kullanıcılarının kayıtlı object
+path'lerini Storage API üzerinden siler; bucket veya veritabanını sıfırlamaz.
 
 İnceleme tarayıcı testi için API/web'i aynı test stack'ine bağla. API örneği: port
-8001, `CCE_ENVIRONMENT=test`, API/engine DSN'leri 55322, Auth issuer/JWKS 55321;
+8001, `CCE_ENVIRONMENT=test`, API/engine DSN'leri 55322, Auth issuer/JWKS 55321,
+`CCE_STORAGE_URL=http://127.0.0.1:55321` ve test publishable key;
 web örneği: port 3101, `CCE_API_BASE_URL=http://127.0.0.1:8001`,
 `CCE_SUPABASE_URL=http://127.0.0.1:55321`, test publishable key ve
 `CCE_WEB_ORIGIN=http://127.0.0.1:3101`. Ardından `CCE_E2E_REVIEW=1` ve
@@ -260,6 +267,31 @@ web örneği: port 3101, `CCE_API_BASE_URL=http://127.0.0.1:8001`,
 Python fixture'ı iki geçici hesabı/Owner'ı oluşturur, browser'a yalnız proses
 ortamıyla iletir ve test sonunda temizler. CI aynı akışı boş 54321/54322 stack'inde
 otomatik çalıştırır. Ayrı normal tarayıcı testinde bu fixture testi atlanır.
+
+### Private avatar önerileri
+
+Kaydedilmiş taslağa PNG/JPEG/WebP yüklenebilir: girdi ve normalize çıktı en fazla
+512 KiB, boyutlar 32–2048 piksel, tek kare. Backend dosyayı decode eder, metadata'yı
+atar ve yeni PNG üretir. SVG/HTML, MIME uyumsuzluğu ve animasyon reddedilir. Bu
+teknik doğrulama **içerik moderasyonu değildir**; M3 sağlayıcısı hem metni hem
+referanslanan immutable avatarı taramalı ve sonucu aynı revizyona bağlamalıdır.
+
+`cce-avatars` public değildir. Backend Storage'a kullanıcının doğrulanmış JWT'si ve
+publishable key ile erişir; runtime service key kullanmaz. Kullanıcı yalnız kendi
+ayrılmış path'ine ekleyebilir; overwrite/delete izni yoktur. Owner yetkisi ve
+oturumun hâlâ geçerli oluşu Storage RLS içinde yeniden kontrol edilir. Görseller
+same-origin `/media/{id}` üzerinden auth kontrollü, `no-store` ve `nosniff` sunulur.
+
+Yükleme `PENDING → READY` rezervasyonu, sabit upload key ve SHA-256 doğrulamasıyla
+tekrar denenebilir. Storage çağrısında DB kilidi tutulmaz; taslak sürümü değişirse
+dosya bağlanmaz. Gönderim avatar kimliğini immutable revizyona kopyalar. Yeni
+revizyon yeni bir dosya seçebilir; önceki dosyanın byte'ları/referansı değişmez.
+Kullanıcı başına 24 saatte 20 ve toplam 100 rezervasyon sınırı vardır; yarım kalan
+yüklemeler de kotaya dahildir. Otomatik orphan temizliği henüz yoktur.
+
+API için `CCE_STORAGE_URL` ve `CCE_SUPABASE_PUBLISHABLE_KEY` ayarla. Compose mevcut
+root publishable key'i API/web'e geçirir. Sağlayıcı eksikse onay `ERROR` nedeniyle
+kapalı kalır; sadece dosya doğrulamasından geçmek karakter onayı/aktivasyonu değildir.
 
 Web/API çalışırken tarayıcı testi:
 

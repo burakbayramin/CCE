@@ -1,4 +1,5 @@
 import type { Proposal, SubmissionHistory } from '../../lib/contributions';
+import { PrivateAvatar } from '../../components/private-avatar';
 
 export function ProposalHistory({ history }: { history: SubmissionHistory }) {
   return <section className="mt-10 border-t pt-6">
@@ -16,6 +17,8 @@ export function ProposalHistory({ history }: { history: SubmissionHistory }) {
       return <details key={revision.id} className="mt-4 rounded border p-4">
         <summary>Revizyon {revision.revision_number} — {revision.definition.name}</summary>
         <p className="my-2 text-xs">{revision.id} · {new Date(revision.created_at).toISOString()}</p>
+        <PrivateAvatar id={revision.avatar_id} />
+        {index > 0 && history.revisions[index - 1].avatar_id !== revision.avatar_id && <p>Avatar önceki gönderime göre değişti.</p>}
         <p>{previous ? 'Önceki gönderime göre değişen alanlar' : 'İlk gönderimin alanları'}</p>
         {changed.map(key => <div key={key} className="mt-3 border-t pt-2">
           <h3 className="font-semibold">{key}</h3>

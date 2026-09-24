@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { saveDraft, transitionDraft } from '../../app/contributor/drafts/actions';
+import { saveDraft, transitionDraft, uploadAvatar } from '../../app/contributor/drafts/actions';
+import { PrivateAvatar } from '../../components/private-avatar';
 import type { Proposal, Submission } from '../../lib/contributions';
 
 const texts = [
@@ -48,6 +49,10 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<Proposal | null>(null);
   const [busy, setBusy] = useState(false);
+  const [navigating, startNavigation] = useTransition();
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadKey, setUploadKey] = useState('');
+  const pending = busy || navigating;
   const definition = item?.definition;
   const defaults = {
     ...Object.fromEntries(texts.map(([key]) => [key, definition?.[key] ?? ''])),
@@ -75,7 +80,7 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
       const result = await saveDraft(proposal, creationKey, current?.id, current?.version);
       if (!result.data) { setError(result.error); return; }
       setCurrent(result.data); setPreview(result.data.definition); reset(values);
-      router.replace(`/contributor/drafts/${result.data.id}`);
+      startNavigation(() => router.replace(`/contributor/drafts/${result.data.id}`));
     } catch { setError('İşlem sonucu doğrulanamadı; içeriğin korunuyor. Yeniden dene.'); }
     finally { setBusy(false); }
   }
@@ -85,16 +90,34 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     try {
       const result = await transitionDraft(current.id, current.version, action);
       if (!result.data) { setError(result.error); return; }
-      setCurrent(result.data); router.refresh();
+      setCurrent(result.data); startNavigation(() => router.refresh());
     } catch { setError('İşlem sonucu doğrulanamadı. Güncel durumu kontrol etmek için sayfayı yenile.'); }
+    finally { setBusy(false); }
+  }
+  async function upload() {
+    if (!file || !current) return;
+    setBusy(true); setError('');
+    const data = new FormData();
+    data.set('file', file); data.set('id', current.id); data.set('version', String(current.version)); data.set('key', uploadKey);
+    try {
+      const result = await uploadAvatar(data);
+      if (!result.data) { setError(result.error); return; }
+      setCurrent(result.data); setFile(null); startNavigation(() => router.refresh());
+    } catch { setError('Yükleme sonucu doğrulanamadı; aynı dosyayla yeniden dene.'); }
     finally { setBusy(false); }
   }
   return <>
     <p className="mt-4">Durum: <strong>{current?.status ?? 'Yeni taslak'}</strong> · Sürüm: {current?.version ?? '—'}</p>
-    <p className="mt-3 text-sm text-slate-600">Görsel yükleme ve karakter aktivasyonu henüz açık değil. Gönderilmiş revizyon değiştirilemez; Owner değişiklik istediğinde yeni taslak açabilirsin. Ham system prompt ve runtime state kabul edilmez.</p>
+    <p className="mt-3 text-sm text-slate-600">Karakter aktivasyonu henüz açık değil. Gönderilmiş revizyon ve avatarı değiştirilemez; Owner değişiklik istediğinde yeni taslak açabilirsin. Ham system prompt ve runtime state kabul edilmez.</p>
+    <PrivateAvatar id={current?.avatar_id} />
+    {current && editable && <fieldset disabled={pending || isDirty} className="mt-5 space-y-3">
+      <label className="block">Avatar önerisi<input type="file" accept="image/png,image/jpeg,image/webp" className="mt-2 block" onChange={event => { setFile(event.target.files?.[0] ?? null); setUploadKey(crypto.randomUUID()); }} /></label>
+      <p className="text-sm">Önce metin değişikliklerini kaydet. PNG/JPEG/WebP, 32–2048 piksel, en fazla 512 KiB. Dosya doğrulanıp metadatasız PNG olarak private saklanır; içerik moderasyonu ayrı adımdır.</p>
+      <button type="button" disabled={!file} onClick={upload} className="rounded border px-4 py-2">Avatarı yükle</button>
+    </fieldset>}
     {error && <p role="alert" className="mt-4 text-red-800">{error}</p>}
     <form onSubmit={handleSubmit(save)} className="mt-8 space-y-5">
-      <fieldset disabled={!editable || busy} className="space-y-5 disabled:opacity-75">
+      <fieldset disabled={!editable || pending} className="space-y-5 disabled:opacity-75">
         {texts.map(([key, label, max]) => <label key={key} className="block">{label}<textarea {...register(key)} maxLength={max} rows={key === 'backstory' ? 5 : 2} className="mt-1 block w-full rounded border p-3" /></label>)}
         <label className="block">Yaş<input {...register('age', { valueAsNumber: true })} type="number" min={18} max={10000} className="ml-3 rounded border p-2" /></label>
         <details><summary>Kişilik eksenleri (0–100)</summary><div className="mt-4 grid gap-3 sm:grid-cols-2">{axes.map(([key, label]) => <label key={key}>{label}<input {...register(key, { valueAsNumber: true })} type="number" min={0} max={100} className="ml-2 w-20 rounded border p-2" /></label>)}</div></details>
@@ -106,9 +129,9 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
       </fieldset>
     </form>
     {(preview || current) && <details className="mt-8" open={!editable}><summary>Kaydedilmiş karakter ön izlemesi</summary><h2 className="mt-3 text-xl">{(preview ?? current?.definition)?.name}</h2><p className="my-3 whitespace-pre-wrap">{(preview ?? current?.definition)?.introduction}</p><p className="whitespace-pre-wrap">{(preview ?? current?.definition)?.backstory}</p></details>}
-    {current?.status === 'DRAFT' && <button disabled={busy || isDirty} onClick={() => transition('submit')} className="mt-6 rounded bg-teal-800 px-5 py-3 text-white disabled:opacity-50">İncelemeye gönder</button>}
-    {current?.status === 'CHANGES_REQUESTED' && <button disabled={busy} onClick={() => transition('revise')} className="mt-6 mr-4 rounded bg-teal-800 px-5 py-3 text-white">Yeni revizyon taslağı aç</button>}
-    {current && ['SUBMITTED', 'UNDER_REVIEW', 'CHANGES_REQUESTED'].includes(current.status) && <button disabled={busy} onClick={() => transition('withdraw')} className="mt-6 rounded border px-5 py-3">Başvuruyu geri çek</button>}
+    {current?.status === 'DRAFT' && <button disabled={pending || isDirty} onClick={() => transition('submit')} className="mt-6 rounded bg-teal-800 px-5 py-3 text-white disabled:opacity-50">İncelemeye gönder</button>}
+    {current?.status === 'CHANGES_REQUESTED' && <button disabled={pending} onClick={() => transition('revise')} className="mt-6 mr-4 rounded bg-teal-800 px-5 py-3 text-white">Yeni revizyon taslağı aç</button>}
+    {current && ['SUBMITTED', 'UNDER_REVIEW', 'CHANGES_REQUESTED'].includes(current.status) && <button disabled={pending} onClick={() => transition('withdraw')} className="mt-6 rounded border px-5 py-3">Başvuruyu geri çek</button>}
     {current?.status === 'APPROVED' && <p className="mt-6">Bu revizyon onaylandı; henüz canlı karakter oluşturulmadı.</p>}
     {current?.status === 'WITHDRAWN' && <p className="mt-6">Bu başvuru yeniden açılamaz; yeni taslak oluşturabilirsin.</p>}
   </>;

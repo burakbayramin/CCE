@@ -30,10 +30,21 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await contributor.getByRole('button', { name: 'Kaydet ve ön izle' }).click();
     await expect(contributor).toHaveURL(/\/drafts\/[0-9a-f-]+$/);
     const id = contributor.url().split('/').at(-1)!;
+    // Browser-generated fixture pixels; no external image or private user media.
+    const png = await contributor.evaluate(() => {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
+      const context = canvas.getContext('2d')!; context.fillStyle = 'blue'; context.fillRect(0, 0, 64, 64);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    await contributor.getByLabel('Avatar önerisi').setInputFiles({ name: 'fixture.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+    await contributor.getByRole('button', { name: 'Avatarı yükle' }).click();
+    await expect(contributor.getByRole('img', { name: 'Önerilen karakter avatarı' }).first()).toBeVisible();
+    await expect.poll(() => contributor.getByRole('img').first().evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(64);
     await contributor.getByRole('button', { name: 'İncelemeye gönder' }).click();
     await expect(contributor.getByText('SUBMITTED', { exact: true })).toBeVisible();
     await owner.goto(`${base}/admin/reviews`);
     await owner.getByRole('link', { name: 'İnceleme Deniz', exact: true }).click();
+    await expect.poll(() => owner.getByRole('img').first().evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(64);
     await owner.getByRole('button', { name: 'İncelemeyi başlat' }).click();
     await expect(owner.getByRole('heading', { name: 'Moderasyon: ERROR' })).toBeVisible();
     await expect(owner.getByRole('button', { name: 'Revizyonu onayla' })).toBeDisabled();
@@ -47,6 +58,7 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await contributor.getByLabel('İsim', { exact: true }).fill('Yeni Deniz');
     await contributor.getByRole('button', { name: 'Kaydet ve ön izle' }).click();
     await expect(contributor.getByRole('button', { name: 'İncelemeye gönder' })).toBeEnabled();
+    await expect(contributor.getByLabel('İsim', { exact: true })).toHaveValue('Yeni Deniz');
     await contributor.getByRole('button', { name: 'İncelemeye gönder' }).click();
     await expect(contributor.getByText('SUBMITTED', { exact: true })).toBeVisible();
     await owner.goto(`${base}/admin/reviews/${id}`);
@@ -59,6 +71,11 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await contributor.reload();
     await expect(contributor.getByText('Bu başvuruyu test kapsamında reddediyorum.', { exact: true })).toBeVisible();
     await expect(contributor.getByLabel('İsim', { exact: true })).toBeDisabled();
+  } catch (error) {
+    // Fixture-only rendered text, never cookies, storage state, headers or traces.
+    console.error('Owner review screen:', await owner.locator('body').innerText().catch(() => '(closed)'));
+    console.error('Contributor screen:', await contributor.locator('body').innerText().catch(() => '(closed)'));
+    throw error;
   } finally {
     // Cleanup must not hide the failing interaction when Playwright has timed out.
     await Promise.allSettled([ownerContext.close(), contributorContext.close()]);
