@@ -12,7 +12,8 @@ M2'nin ilk dilimi `/signup`, `/login`, `/contributor` ve `/admin` yollarını ek
 değiştirilemez başvuru gönderimi ve geri çekme çalışır. `/admin/reviews` üzerinden
 Owner incelemesi, gerekçeli değişiklik talebi/ret, revizyon farkları ve onay kapısı
 vardır. Katkıcı değişiklik talebinden sonra yeni taslak açıp yeni immutable revizyon
-gönderebilir; eski gönderim ve feedback korunur. Medya yükleme henüz uygulanmadı.
+gönderebilir; eski gönderim ve feedback korunur. Private avatar yükleme, sahiplik
+kontrolü ve değiştirilemez medya referansı uygulanmıştır.
 Bu dilim canlı karakter oluşturmaz ve gerçek otomatik moderasyon henüz yapılandırılmadı;
 public contributor açılışı için hazır değildir.
 
