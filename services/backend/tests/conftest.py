@@ -91,6 +91,12 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                         )
                         assert removed.status_code == 200
                     db.execute(
+                        "delete from world_private.character_definitions "
+                        "where created_by=%s or submission_id in "
+                        "(select id from public.character_submissions where user_id=%s)",
+                        (target, target),
+                    )
+                    db.execute(
                         "delete from public.submission_feedback "
                         "where actor_user_id=%s or submission_id in "
                         "(select id from public.character_submissions where user_id=%s)",

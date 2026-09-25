@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select ok((select relforcerowsecurity from pg_class where oid='world_private.character_definitions'::regclass), 'Definition FORCE RLS');
+select ok(not has_table_privilege('cce_api','world_private.character_definitions','SELECT'), 'Contributor API cannot read definition artifacts');
+select ok(not has_table_privilege('authenticated','world_private.character_definitions','INSERT'), 'No Data API writes');
+select ok(not has_table_privilege('anon','world_private.character_definitions','SELECT'), 'No anonymous reads');
+select ok(not has_table_privilege('cce_engine','world_private.character_definitions','UPDATE'), 'Definition artifacts are immutable');
+select ok(not has_table_privilege('cce_engine','world_private.character_definitions','DELETE'), 'Definition history cannot be deleted');
+select ok(not has_table_privilege('cce_worker_gpu','world_private.character_definitions','SELECT'), 'No premature runtime access');
+select * from finish();
+rollback;

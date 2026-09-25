@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
+from cce.modules.characters.repository import prepare_definition, read_definition
+from cce.modules.characters.schemas import CompileDefinition, StoredDefinition
 from cce.modules.contributions.moderation import ModerationProvider
 from cce.modules.contributions.repository import ContributionError
 from cce.modules.contributions.review import decide, read_review, start_review
@@ -101,5 +103,30 @@ def review_router(
         connection: Annotated[Connection, Depends(transaction, scope="function")],
     ) -> Submission:
         return decide(connection, actor, submission_id, payload, test_mode=test_mode)
+
+    @router.get(
+        "/{submission_id}/definition",
+        response_model=StoredDefinition | None,
+        operation_id="reviews_definition_get",
+    )
+    def definition(
+        submission_id: UUID,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> StoredDefinition | None:
+        read_review(connection, submission_id)
+        return read_definition(connection, submission_id)
+
+    @router.post(
+        "/{submission_id}/definition",
+        response_model=StoredDefinition,
+        operation_id="reviews_definition_compile",
+    )
+    def compile(
+        submission_id: UUID,
+        payload: CompileDefinition,
+        actor: Annotated[Actor, Depends(verified_actor)],
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> StoredDefinition:
+        return prepare_definition(connection, actor, submission_id, payload, test_mode=test_mode)
 
     return router

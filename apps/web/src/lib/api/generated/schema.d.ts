@@ -244,6 +244,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reviews/{submission_id}/definition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Definition */
+        get: operations["reviews_definition_get"];
+        put?: never;
+        /** Compile */
+        post: operations["reviews_definition_compile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -282,6 +300,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AffectBaseline */
+        AffectBaseline: {
+            /** Valence */
+            valence: number;
+            /** Arousal */
+            arousal: number;
+            /** Dominance */
+            dominance: number;
+        };
+        /** BootstrapCandidates */
+        BootstrapCandidates: {
+            /**
+             * Derivation Version
+             * @default bootstrap-v1
+             * @constant
+             */
+            derivation_version: "bootstrap-v1";
+            /**
+             * Calibration Status
+             * @default provisional
+             * @constant
+             */
+            calibration_status: "provisional";
+            /**
+             * Source Revision Id
+             * Format: uuid
+             */
+            source_revision_id: string;
+            temperament: components["schemas"]["Personality"];
+            /** Baseline Source Fields */
+            baseline_source_fields: string[];
+            baseline: components["schemas"]["AffectBaseline"];
+            initial_affect: components["schemas"]["AffectBaseline"];
+            /** Core Memories */
+            core_memories: components["schemas"]["SeedCandidate"][];
+            /** Core Drives */
+            core_drives: components["schemas"]["SeedCandidate"][];
+            /** Goals */
+            goals: components["schemas"]["SeedCandidate"][];
+            /** Relationships */
+            relationships: components["schemas"]["SeedCandidate"][];
+            /** Secrets */
+            secrets: components["schemas"]["SeedCandidate"][];
+        };
+        /** CharacterDefinition */
+        CharacterDefinition: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Compiler Version
+             * @default definition-v1
+             * @constant
+             */
+            compiler_version: "definition-v1";
+            source: components["schemas"]["DefinitionSource"];
+            proposal: components["schemas"]["CharacterProposal"];
+            bootstrap: components["schemas"]["BootstrapCandidates"];
+            prompt: components["schemas"]["PromptTemplate"];
+        };
         /** CharacterProposal */
         CharacterProposal: {
             /**
@@ -369,6 +450,19 @@ export interface components {
              */
             original_character_confirmed: boolean;
         };
+        /**
+         * CompileDefinition
+         * @description Client supplies only the expected source, never derived state or prompt text.
+         */
+        CompileDefinition: {
+            /** Expected Version */
+            expected_version: number;
+            /**
+             * Revision Id
+             * Format: uuid
+             */
+            revision_id: string;
+        };
         /** ContributionProblem */
         ContributionProblem: {
             /** Detail */
@@ -384,6 +478,51 @@ export interface components {
              */
             creation_key: string;
             definition: components["schemas"]["CharacterProposal"];
+        };
+        /** DefinitionSource */
+        DefinitionSource: {
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
+            /**
+             * Revision Id
+             * Format: uuid
+             */
+            revision_id: string;
+            /** Revision Number */
+            revision_number: number;
+            /**
+             * Approval Id
+             * Format: uuid
+             */
+            approval_id: string;
+            /**
+             * Approved By
+             * Format: uuid
+             */
+            approved_by: string;
+            /**
+             * Approved At
+             * Format: date-time
+             */
+            approved_at: string;
+            /** Moderation Policy Version */
+            moderation_policy_version: string;
+            /** Moderation Provider */
+            moderation_provider: string;
+            /**
+             * Moderation Result
+             * @enum {string}
+             */
+            moderation_result: "PASS" | "REVIEW";
+            /** Is Fixture */
+            is_fixture: boolean;
+            /** Avatar Id */
+            avatar_id: string | null;
+            /** Avatar Sha256 */
+            avatar_sha256?: string | null;
         };
         /** Feedback */
         Feedback: {
@@ -487,6 +626,25 @@ export interface components {
              */
             warmth: number;
         };
+        /** PromptTemplate */
+        PromptTemplate: {
+            /**
+             * Template Version
+             * @default character-v1
+             * @constant
+             */
+            template_version: "character-v1";
+            /** System Instructions */
+            system_instructions: string;
+            /** Character Data Json */
+            character_data_json: string;
+            /**
+             * Requires Context Filtering
+             * @default true
+             * @constant
+             */
+            requires_context_filtering: true;
+        };
         /** ReviewCommand */
         ReviewCommand: {
             /** Expected Version */
@@ -533,6 +691,47 @@ export interface components {
              */
             created_at: string;
         };
+        /** SeedCandidate */
+        SeedCandidate: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "background" | "goal" | "drive" | "relationship_proposal" | "secret_proposal";
+            /** Text */
+            text: string;
+            /**
+             * Source Revision Id
+             * Format: uuid
+             */
+            source_revision_id: string;
+            /** Source Field */
+            source_field: string;
+            /**
+             * Access
+             * @default private
+             * @constant
+             */
+            access: "private";
+            /**
+             * Sharing Policy
+             * @default character_only
+             * @constant
+             */
+            sharing_policy: "character_only";
+            /**
+             * Requires Validation
+             * @default true
+             * @constant
+             */
+            requires_validation: true;
+            /**
+             * Is Lived Experience
+             * @default false
+             * @constant
+             */
+            is_lived_experience: false;
+        };
         /** StartReview */
         StartReview: {
             /** Expected Version */
@@ -542,6 +741,24 @@ export interface components {
              * Format: uuid
              */
             revision_id: string;
+        };
+        /** StoredDefinition */
+        StoredDefinition: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Definition Version */
+            definition_version: number;
+            /** Artifact Sha256 */
+            artifact_sha256: string;
+            artifact: components["schemas"]["CharacterDefinition"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** Submission */
         Submission: {
@@ -1775,6 +1992,162 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Submission"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+        };
+    };
+    reviews_definition_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredDefinition"] | null;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+        };
+    };
+    reviews_definition_compile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompileDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredDefinition"];
                 };
             };
             /** @description Unauthorized */
