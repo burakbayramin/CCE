@@ -8,6 +8,7 @@ export type Submission = components['schemas']['Submission'];
 export type Proposal = components['schemas']['CharacterProposal'];
 export type SubmissionHistory = components['schemas']['SubmissionHistory'];
 export type ReviewDetail = components['schemas']['ReviewDetail'];
+export type StoredDefinition = components['schemas']['StoredDefinition'];
 export type ApiResult<T> = { data: T; error: null } | { data: null; error: string };
 
 export async function contributionApi<T>(path = '', method = 'GET', body?: unknown): Promise<ApiResult<T>> {

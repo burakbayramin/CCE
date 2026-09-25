@@ -4,7 +4,7 @@
 
 **Planlanan başlangıç:** 2026-09-23 (`Europe/Istanbul`)
 
-**Durum:** M1 ve M2 tamamlandı. Kimlik/yetki, başvuru/revizyon/inceleme ve private avatar akışları temiz CI ve iki oturumlu tarayıcı testiyle doğrulandı. Sıradaki milestone M3 — karakter aktivasyonu ve lifecycle; gerçek moderasyon sağlayıcısı henüz seçilmedi ve gerçek onay/aktivasyon kapısı açık değildir.
+**Durum:** M1 ve M2 tamamlandı. Yalnız M3.1 uygulanıyor: immutable tanım, onay/provenance bağı, prompt şablonu ve başlangıç adayları. Son tam CI/tarayıcı doğrulaması bekleniyor. M3.2 ve sonrasına geçiş için kullanıcı izni gerekli; gerçek moderasyon ve aktivasyon kapalıdır.
 
 **Mimari kaynak:** [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md), uygulama başlangıcındaki son mimari commit `bb34875`.
 

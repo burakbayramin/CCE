@@ -28,7 +28,42 @@ aynı içerikle yinelendiğinde aynı taslağı döndürür. Katkıcı başına 
 24 saatte oluşturulmuş kayıtların birleşimi en fazla 10'dur. Gönderim ve audit
 atomiktir; geri çekilen başvuru yeniden açılmaz.
 
-## Araçlar
+## M3.1 — Onaylı karakter tanımını derleme
+
+Owner, `APPROVED` başvurunun inceleme ekranındaki **Onaylı tanımı derle** işlemiyle
+immutable bir tanım kaydı oluşturabilir. `POST /reviews/{id}/definition` yalnız
+beklenen başvuru sürümü/revizyon kimliğini kabul eder; istemci prompt veya türetilmiş
+state gönderemez. `GET` aynı private artifact'ı okur; kayıt yoksa `null` döner.
+
+- `world_private.character_definitions` Data API'ye kapalıdır. `cce_engine` yalnız
+  güncel Owner bağlamıyla okuyup ekleyebilir; UPDATE/DELETE ve worker erişimi yoktur.
+- Revizyon, Owner onayı, reviewer, moderasyon politika/sağlayıcı/fixture bilgisi ve
+  avatar kimliği/hash'i birlikte sabitlenir. Derleyen actor ve zaman da kayıtlıdır.
+- `definition_version` kaynak revizyon sırasıdır; henüz canlı karakter sürüm
+  pointer'ı değildir. Şema `1`, derleyici `definition-v1`, prompt `character-v1`,
+  türetme `bootstrap-v1` ile sürümlüdür. Aynı revizyonun eşzamanlı/retry derlemesi
+  aynı ID/hash'i döndürür; kod yükseltmesi eski artifact'ı sessizce yeniden yazmaz.
+- Canonical JSON SHA-256'sı okuma sırasında doğrulanır. DB trigger'ı artifact'ın
+  kaynağını gerçek onay/revizyonla eşleştirir. Başka revizyonun onayı kullanılamaz.
+- System talimatları sabittir; katkı metni ayrı JSON veri alanında tutulur. Bu
+  ayrım tek başına prompt-injection güvenliği veya moderasyon kanıtı değildir.
+  Artifact model-ready context değildir; alıcıya göre context filtrelemesi zorunludur.
+- Backstory ve geçmiş olayları **background adaylarıdır**, commit edilmiş yaşanmış
+  deneyim değildir. Motivasyonlar sabit core drive adaylarını, başlangıç hedefleri
+  goal adaylarını sağlar. Kişi/sır önerileri ayrı kalır; otomatik ilişki veya paylaşım
+  izni oluşturmaz, prompt veri alanına eklenmez. Her aday kaynak alanını/revizyonunu
+  ve private/character-only kısıtını taşır; uygulanmadan önce doğrulama gerekir.
+- Başlangıç affect adayı baseline'a eşittir. `bootstrap-v1` geçici teknik tarifi:
+  V=(warmth−50)/125, A=(sociability−50)/125, D=(assertiveness−50)/125; aralık ±0.4.
+  Bunlar psikolojik ölçüm veya tamamlanmış kalibrasyon değildir. Politika değişimi
+  açık sürüm değişikliği gerektirir; mevcut tanımların baseline'ı otomatik değişmez.
+
+M3.1 canlı karakter, runtime memory/goal/relationship veya aktivasyon üretmez;
+M3.2–M3.6 uygulanmış sayılmaz. Gerçek moderasyon eksik olduğundan mevcut normal
+başvurular onaylanamaz; derleme akışının başarılı uçtan uca testi yalnız izole,
+etiketli fixture ile yapılır. Fixture artifact'ı gerçek aktivasyon izni değildir.
+
+## Araç sürümleri
 
 | Araç | Sabitlenen sürüm |
 | --- | --- |

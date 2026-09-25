@@ -263,17 +263,25 @@ def test_withdraw_approval_race_and_engine_rls(review_accounts) -> None:
 @pytest.mark.skipif(os.environ.get("CCE_E2E_REVIEW") != "1", reason="Requires running test web/API")
 def test_review_browser_flow(review_accounts) -> None:
     (owner, contributor), _ = review_accounts
+    # Only this isolated Python fixture can inject PASS. The running HTTP API cannot.
+    with TestClient(create_app(settings(), moderation=FixtureModeration())) as seed:
+        item = start(seed, submitted(seed, contributor), owner)["submission"]
+        approved = seed.post(
+            f"/reviews/{item['id']}/decision", headers=headers(owner), json=decision(item)
+        )
+        assert approved.status_code == 200
     env = {
         **os.environ,
         "CCE_E2E_OWNER_EMAIL": owner["email"],
         "CCE_E2E_OWNER_PASSWORD": owner["password"],
         "CCE_E2E_CONTRIBUTOR_EMAIL": contributor["email"],
         "CCE_E2E_CONTRIBUTOR_PASSWORD": contributor["password"],
+        "CCE_E2E_DEFINITION_SUBMISSION": item["id"],
     }
     pnpm = shutil.which("pnpm.cmd" if os.name == "nt" else "pnpm")
     assert pnpm
     subprocess.run(
-        [pnpm, "--filter", "@cce/web", "test:e2e", "review.spec.ts"],
+        [pnpm, "--filter", "@cce/web", "test:e2e", "review.spec.ts", "definition.spec.ts"],
         cwd=Path(__file__).resolve().parents[3],
         env=env,
         check=True,
