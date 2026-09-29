@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/assets/ccereadmehero.png" alt="Cognitive Character Engine simgesi" width="220">
+
 # 🌍 Cognitive Character Engine
 
 **Kalıcı AI karakterlerin yaşadığı ortak dünya motoru.**
