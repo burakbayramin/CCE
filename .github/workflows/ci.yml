@@ -92,7 +92,7 @@ jobs:
           pnpm --filter @cce/web test:e2e identity.spec.ts
           export CCE_TEST_SUPABASE_PUBLISHABLE_KEY="$CCE_SUPABASE_PUBLISHABLE_KEY"
           export CCE_TEST_STORAGE_ADMIN_KEY="$(pnpm exec supabase status -o json | jq -r '.SERVICE_ROLE_KEY')"
-          CCE_E2E_REVIEW=1 uv run --project services/backend pytest services/backend/tests/test_review_integration.py -k browser
+          CCE_E2E_REVIEW=1 uv run --project services/backend pytest services/backend/tests/test_review_integration.py services/backend/tests/test_moderation_jobs_integration.py -k browser
       - if: always()
         run: pnpm db:stop
 

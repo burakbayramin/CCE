@@ -1,6 +1,10 @@
 """Real DB protocol tests, not evidence of a real model's content-safety quality."""
 
+import os
+import shutil
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from uuid import uuid4
 
 import psycopg
@@ -66,6 +70,33 @@ def detail(api, item, owner):
     response = api.get(f"/reviews/{item['id']}", headers=headers(owner))
     assert response.status_code == 200
     return response.json()
+
+
+@pytest.mark.skipif(os.environ.get("CCE_E2E_REVIEW") != "1", reason="Requires running test web/API")
+def test_moderation_retry_browser_flow(review_accounts):
+    (owner, contributor), _ = review_accounts
+    with TestClient(create_app(settings())) as api:
+        report = start(api, submitted(api, contributor), owner)
+        assert report["moderation_job"]["state"] == "PENDING"
+        work = claim()
+        assert work["job_id"] == report["moderation_job"]["id"]
+        assert finish(work, "ERROR", "MODEL_UNAVAILABLE") is True
+        item = detail(api, report["submission"], owner)
+        assert item["moderation_job"]["state"] == "ERROR"
+    pnpm = shutil.which("pnpm.cmd" if os.name == "nt" else "pnpm")
+    assert pnpm
+    subprocess.run(
+        [pnpm, "--filter", "@cce/web", "test:e2e", "moderation-retry.spec.ts"],
+        cwd=Path(__file__).resolve().parents[3],
+        env={
+            **os.environ,
+            "CCE_E2E_OWNER_EMAIL": owner["email"],
+            "CCE_E2E_OWNER_PASSWORD": owner["password"],
+            "CCE_E2E_MODERATION_SUBMISSION": report["submission"]["id"],
+        },
+        check=True,
+        timeout=120,
+    )
 
 
 def test_pending_claim_once_retry_and_late_result(review_accounts):
