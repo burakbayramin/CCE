@@ -1,0 +1,107 @@
+import sys
+from types import ModuleType
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+
+from cce.modules.contributions import moderation_service
+from cce.modules.contributions.moderation_service import WorkerSettings, load_scanner
+
+
+def settings(**overrides):
+    values = {
+        "environment": "local",
+        "worker_database_url": (
+            "postgresql+psycopg://cce_worker_cpu:cce-local-worker-only@127.0.0.1:55322/postgres"
+        ),
+        "storage_url": "http://127.0.0.1:55321",
+        "supabase_publishable_key": "sb_publishable_test",
+        "moderation_auth_user_id": str(uuid4()),
+        "moderation_auth_email": "worker@example.com",
+        "moderation_auth_password": "worker-test-password",
+        "moderation_scanner_factory": "fixture_local_scanner:Scanner",
+    }
+    return WorkerSettings(_env_file=None, **(values | overrides))
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+psycopg://cce_api:secret@127.0.0.1:55322/postgres",
+        "sqlite:///local.db",
+        "postgresql+psycopg://cce_worker_cpu@127.0.0.1:55322/postgres",
+    ],
+)
+def test_worker_database_requires_restricted_role(url):
+    with pytest.raises(ValidationError, match="cce_worker_cpu database URL"):
+        settings(worker_database_url=url)
+
+
+def test_deployed_worker_refuses_local_fixture_credentials():
+    with pytest.raises(ValidationError, match="Local worker fixture"):
+        settings(environment="production")
+
+
+def test_worker_environment_must_be_explicit(monkeypatch):
+    monkeypatch.delenv("CCE_ENVIRONMENT", raising=False)
+    with pytest.raises(ValidationError, match="environment"):
+        WorkerSettings(
+            _env_file=None,
+            worker_database_url=(
+                "postgresql+psycopg://cce_worker_cpu:secret@127.0.0.1:55322/postgres"
+            ),
+            storage_url="http://127.0.0.1:55321",
+            supabase_publishable_key="sb_publishable_test",
+            moderation_auth_user_id=str(uuid4()),
+            moderation_auth_email="worker@example.com",
+            moderation_auth_password="worker-test-password",
+            moderation_scanner_factory="fixture_local_scanner:Scanner",
+        )
+
+
+def test_scanner_must_be_explicit_and_loadable(monkeypatch):
+    module = ModuleType("fixture_local_scanner")
+
+    class Scanner:
+        def __init__(self, reader):
+            self.reader = reader
+
+        def evaluate(self, work):
+            return work
+
+    module.Scanner = Scanner
+    monkeypatch.setitem(sys.modules, "fixture_local_scanner", module)
+    reader = object()
+    loaded = load_scanner("fixture_local_scanner:Scanner", reader)
+    assert isinstance(loaded, Scanner) and loaded.reader is reader
+    with pytest.raises(ValueError, match="could not be loaded"):
+        load_scanner("cce.modules.contributions.moderation_worker:UnconfiguredLocalScanner", reader)
+
+
+def test_scanner_import_failure_does_not_echo_private_details(monkeypatch):
+    module = ModuleType("fixture_local_scanner")
+
+    def explode():
+        raise RuntimeError("secret scanner path and credentials")
+
+    module.explode = explode
+    monkeypatch.setitem(sys.modules, "fixture_local_scanner", module)
+    with pytest.raises(ValueError) as failure:
+        load_scanner("fixture_local_scanner:explode", object())
+    assert "secret" not in str(failure.value)
+
+
+def test_worker_engine_uses_one_restricted_connection(monkeypatch):
+    captured = {}
+
+    def fake_engine(url, **kwargs):
+        captured.update(url=url, **kwargs)
+        return object()
+
+    monkeypatch.setattr(moderation_service, "create_engine", fake_engine)
+    moderation_service.create_worker_engine(settings())
+    assert captured["url"].startswith("postgresql+psycopg://cce_worker_cpu:")
+    assert captured["pool_size"] == 1
+    assert captured["max_overflow"] == 0
+    assert captured["hide_parameters"] is True
