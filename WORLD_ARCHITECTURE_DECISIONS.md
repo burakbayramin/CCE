@@ -649,6 +649,16 @@ Bu karar, katkıcı girdilerinin, karakter tanımlarının, autonomous scene'ler
 
 Katmanlı otomatik kontroller, World Owner onayı ve internal/public yayın ayrımı kabul edilmiştir.
 
+#### Başvuru moderasyonunun çalıştırılması — 2026-09-26
+
+- Yerel ön kontroller + yerel model tabanlı moderasyon + zorunlu World Owner incelemesi kabul edilmiştir. Bu karar aynı gün verilen haricî başvuru taraması kararının yerine geçer. Haricî moderasyon API'si veya otomatik cloud fallback kullanılmaz; ileride dış servise geçiş yeni kullanıcı onayı gerektirir. API kullanım ücreti gerektirmeyen yerel işletim hedeflenir; elektrik, donanım ve bakım maliyetleri devam eder.
+- Yerel ön kontroller şema, alan/uzunluk ve dosya türü/boyutu doğrulaması ile belirgin risk sinyallerini kapsar; bütün risklerin tespit edildiği garantisini vermez. Moderasyonun kapsamı gönderilmiş başvurunun karakter metni ve varsa avatarıdır; taslak kaydetmek tek başına model taraması başlatmaz. Başvuru içeriği haricî bir moderasyon sağlayıcısına gönderilmez. Bu karar mevcut cloud control plane/Storage mimarisini değiştirmez ve bütün proje verilerinin yalnız laptopta saklandığı anlamına gelmez.
+- Metin için konuşma modelinden ayrı bir moderasyon modeli değerlendirilir. Görsel girdiyi desteklemeyen metin modeli avatar taraması yerine kullanılamaz; ayrı yerel görsel tarayıcı/model gerekir. Avatar varsa zorunlu görsel taraması tamamlanmadan başvuru onay kapısı açılmaz; yalnız insan incelemesi eksik otomatik taramayı telafi etmez.
+- Genel zararlı içerik sınıflandırması; prompt injection, kişisel veri/gerçek kişi ve telif riski kontrollerinin tamamının yerine geçmez. Ayrı kontroller ve insan incelemesi korunur; zorunlu kontrolün eksikliği veya hatası `PASS` sayılmaz.
+- Kesin metin/görsel modeli, runtime ve quantization seçimi kullanıcının isteğiyle son entegrasyon/kabul aşamasına bırakılmıştır. Qwen3Guard-Gen-0.6B ve 4B yalnız önceki değerlendirme adaylarıdır; seçilmiş veya doğrulanmış modeller değildir. Türkçe politika uyumu, yanlış kabul/ret, lisans, CPU/GPU gecikmesi ve RAM/VRAM ölçümleri karar kapısıdır. Model etiketleri CCE politikasına körlemesine eşlenmez. Ana konuşma modeli kararı ayrı kalır. Model bağımsız protokol/ekran/test işleri sürebilir; geçerli gerçek tarama kurulmadan içerik onayı, karakter aktivasyonu ve contributor public açılışı kapalı kalır.
+- Model işleri kalıcı kuyruğa alınır; yerel worker çevrimdışıyken tarama bekler, hata veya eksik çıktı `PASS` olmaz. GPU kullanan moderasyon ortak GPU kapasitesine uyar; CPU alternatifi ölçülür. Model yükleme ve inference sırasında başvuru kilidi veya açık DB transaction'ı tutulmaz.
+- Bu bir mimari karar onayıdır; çalışan yerel tarama veya tamamlanmış M3.2 test kanıtı değildir. Aşağıdaki sürüme bağlı `PASS`/`REVIEW`/`BLOCK`, hata ve Owner onayı kuralları aynen geçerlidir.
+
 #### Katkı hattı
 
 - Form şeması ve alan/uzunluk limitleri doğrulanır.
@@ -1238,7 +1248,7 @@ Uygulama başlamadan değil, ilgili milestone öncesinde sonuçlandırılacaktı
 | Ana LLM, quantization, runtime ve context | İlk gerçek admin chat/scene eval'ından önce | Türkçe kalite, schema başarısı, gecikme, VRAM, sıcaklık |
 | Embedding modeli ve dimension | Memory migration'ı kesinleşmeden önce | Türkçe retrieval eval'ı, hız, RAM/VRAM, lisans |
 | Cloud container ve web sağlayıcısı | Staging deployment öncesinde | Bölge, maliyet, cold start, container, secrets/logs |
-| Otomatik moderasyon sağlayıcısı/modeli | Contributor başvuruları public açılmadan önce | İçerik politikası başarısı, gizlilik, maliyet, Türkçe |
+| Otomatik moderasyon sağlayıcısı/modeli | Son entegrasyon/kabul aşaması; ilk gerçek içerik onayı/aktivasyonu ve contributor public açılışından önce | Yerel metin/avatar taraması kabul edildi; kesin modeller/runtime/quantization, lisans, Türkçe politika ve RTX 3070 / 32 GB hedefindeki donanım testleri açık; haricî API/fallback yok |
 | E-posta sağlayıcısı ve auth recovery | Contributor beta öncesinde | Teslimat, domain kurulumu, rate limit, maliyet |
 | Hata izleme sağlayıcısı | Staging öncesinde | Redaction, retention, fiyat ve veri bölgesi |
 
@@ -1300,3 +1310,6 @@ Her aşama fake/deterministic model adapter'ıyla test edilebilir olmalıdır. G
 | 2026-09-22 | Çapraz incelemenin yedi bulgusu giderildi: kesintili scene processing retry'ı, lifecycle sonrası sonuçlandırma, paylaşım izni/iç işleme, admin mesaj teslimi, aynı kimlikle restore, özet event fazlaması ve moderasyon BLOCK sınırı. İlgili MVP kabul koşulları güncellendi. |
 | 2026-09-22 | RUNNING sırasında commit edilmiş prefix ile FAILED olan sahneler için `RESOLVED` terminal durumu eklendi. Başarılı prefix recovery'si artık operasyonel hata kaynağını koruyarak RESOLVED'a geçer; ilgili UI, rezervasyon ve recovery test kuralları güncellendi. |
 | 2026-09-22 | Kodlama öncesi son tam belge kontrolü tamamlandı. FAILED recovery hedefleri, admin durma isteğinin commit sınırı, lease/etkileşim rezervasyonu ayrımı, sürümden bağımsız domain tekilleştirme, GPU alt iş bağımlılıkları, olumlu REVIEW şartı ve MVP core drive/mesaj sınırları netleştirildi. Yapısal belge kontrolleri ve resmî teknik dayanaklar gözden geçirildi; uygulama kodu veya çalışma zamanı test sonucu üretilmedi. |
+| 2026-09-26 | M3.2 için yerel ön kontroller + haricî başvuru metni/avatar moderasyonu + zorunlu Owner incelemesi kabul edildi. Veri aktarımı kapsamı sınırlandı; özel sohbet ve runtime hafızaları kapsam dışında bırakıldı. Sağlayıcı seçimi ve gerçek entegrasyon doğrulaması açık kaldı. |
+| 2026-09-26 | Kullanıcı onayıyla önceki haricî moderasyon kararı yerel metin/avatar taramasıyla değiştirildi; haricî API ve otomatik cloud fallback kaldırıldı. Zorunlu Owner incelemesi, BLOCK engeli ve eksik/hatalı taramada kapalı onay korundu. Kesin model seçimi Türkçe politika, lisans ve donanım benchmark'larına bırakıldı; M3.2 tamamlanmadı. |
+| 2026-09-29 | Kullanıcı hedef model makinesinin RTX 3070 ve 32 GB RAM olduğunu netleştirdi. Kesin moderasyon modeli/runtime kararı son entegrasyon/kabul aşamasına ertelendi; mevcut GTX 1050 geliştirme ortamı benchmark hedefi sayılmayacak. Gerçek tarama doğrulanana kadar içerik onayı, karakter aktivasyonu ve contributor public açılışı kapalı kalır. |
