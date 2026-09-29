@@ -28,9 +28,13 @@ def worker():
     )
 
 
-def claim():
+def claim(auth_user_id=None):
     with worker() as db:
-        return db.execute("select ops_private.claim_moderation()").fetchone()[0]
+        if auth_user_id is None:
+            return db.execute("select ops_private.claim_moderation()").fetchone()[0]
+        return db.execute(
+            "select ops_private.claim_moderation_for_worker(%s)", (auth_user_id,)
+        ).fetchone()[0]
 
 
 def finish(work, verdict="PASS", error=None, **changes):
