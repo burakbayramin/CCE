@@ -90,7 +90,8 @@ CLI başlarken yapılandırılmış Auth hesabına giriş yapıp kullanıcı kim
 bu doğrulama başarısızsa scanner yüklenmez ve kuyruktan iş alınmaz.
 
 Bu Storage sınırı için izole veritabanı ve gerçek Auth/Storage entegrasyon testi
-hazırlandı ancak bu ortamda henüz çalıştırılamadı. Yerel metin/görsel model,
+GitHub CI'da geçti; bu geliştirme bilgisayarında Docker/WSL bulunmadığından yerel
+tekrar yapılamadı. Yerel metin/görsel model,
 model timeout sınırı ve hedef makine kabulü de açık; bunlar bitmeden moderasyon
 sonucu gerçek onay veya aktivasyon kanıtı değildir.
 
