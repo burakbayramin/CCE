@@ -46,7 +46,9 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await owner.getByRole('link', { name: 'İnceleme Deniz', exact: true }).click();
     await expect.poll(() => owner.getByRole('img').first().evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(64);
     await owner.getByRole('button', { name: 'İncelemeyi başlat' }).click();
-    await expect(owner.getByRole('heading', { name: 'Moderasyon: ERROR' })).toBeVisible();
+    await expect(owner.getByRole('heading', { name: 'Yerel tarama: PENDING' })).toBeVisible();
+    await owner.getByRole('button', { name: 'Tarama durumunu yenile' }).click();
+    await expect(owner.getByRole('heading', { name: 'Yerel tarama: PENDING' })).toBeVisible();
     await expect(owner.getByRole('button', { name: 'Revizyonu onayla' })).toBeDisabled();
     await owner.getByLabel('Karar gerekçesi').fill('Geçmişteki arşiv deneyimini açıkla.');
     await owner.getByRole('button', { name: 'Değişiklik iste' }).click();

@@ -12,6 +12,14 @@ export async function startReview(id: string, version: number, revisionId: strin
   return result;
 }
 
+export async function retryModeration(id: string, version: number, revisionId: string) {
+  const result = await reviewApi<ReviewDetail>(`/${encodeURIComponent(id)}/moderation/retry`, 'POST', {
+    expected_version: version, revision_id: revisionId,
+  });
+  if (result.data) revalidatePath('/admin/reviews');
+  return result;
+}
+
 export async function decideReview(id: string, command: components['schemas']['ReviewCommand']) {
   const result = await reviewApi<Submission>(`/${encodeURIComponent(id)}/decision`, 'POST', command);
   if (result.data) {

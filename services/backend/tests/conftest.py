@@ -108,6 +108,19 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                         (target,),
                     )
                     db.execute(
+                        "delete from ops_private.moderation_attempts where job_id in "
+                        "(select id from ops_private.moderation_jobs "
+                        "where requested_by=%s or submission_id in "
+                        "(select id from public.character_submissions where user_id=%s))",
+                        (target, target),
+                    )
+                    db.execute(
+                        "delete from ops_private.moderation_jobs "
+                        "where requested_by=%s or submission_id in "
+                        "(select id from public.character_submissions where user_id=%s)",
+                        (target, target),
+                    )
+                    db.execute(
                         "delete from ops_private.contribution_events "
                         "where actor_user_id=%s or submission_id in "
                         "(select id from public.character_submissions where user_id=%s)",

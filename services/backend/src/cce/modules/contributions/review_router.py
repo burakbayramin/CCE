@@ -10,7 +10,7 @@ from cce.modules.characters.repository import prepare_definition, read_definitio
 from cce.modules.characters.schemas import CompileDefinition, StoredDefinition
 from cce.modules.contributions.moderation import ModerationProvider
 from cce.modules.contributions.repository import ContributionError
-from cce.modules.contributions.review import decide, read_review, start_review
+from cce.modules.contributions.review import decide, read_review, retry_moderation, start_review
 from cce.modules.contributions.schemas import (
     ContributionProblem,
     ReviewCommand,
@@ -28,7 +28,7 @@ def review_router(
     api_engine: Engine,
     owner_engine: Engine | None,
     verifier: TokenVerifier,
-    provider: ModerationProvider,
+    provider: ModerationProvider | None,
     *,
     test_mode: bool,
 ) -> APIRouter:
@@ -92,6 +92,18 @@ def review_router(
         return start_review(
             connection, actor, submission_id, payload, provider, test_mode=test_mode
         )
+
+    @router.post(
+        "/{submission_id}/moderation/retry",
+        response_model=ReviewDetail,
+        operation_id="reviews_moderation_retry",
+    )
+    def retry_scan(
+        submission_id: UUID,
+        payload: StartReview,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> ReviewDetail:
+        return retry_moderation(connection, submission_id, payload)
 
     @router.post(
         "/{submission_id}/decision", response_model=Submission, operation_id="reviews_decide"

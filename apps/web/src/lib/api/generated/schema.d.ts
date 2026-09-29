@@ -227,6 +227,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reviews/{submission_id}/moderation/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Scan */
+        post: operations["reviews_moderation_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reviews/{submission_id}/decision": {
         parameters: {
             query?: never;
@@ -577,6 +594,53 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /** ModerationAttempt */
+        ModerationAttempt: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Attempt Number */
+            attempt_number: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "RUNNING" | "SUCCEEDED" | "ERROR" | "CANCELLED";
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Result */
+            result: ("PASS" | "REVIEW" | "BLOCK" | "ERROR") | null;
+        };
+        /** ModerationJob */
+        ModerationJob: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "PENDING" | "RUNNING" | "SUCCEEDED" | "ERROR" | "CANCELLED";
+            /** Attempt Number */
+            attempt_number: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Lease Until */
+            lease_until: string | null;
+            /** Attempts */
+            attempts?: components["schemas"]["ModerationAttempt"][];
+        };
         /** ModerationReport */
         ModerationReport: {
             /**
@@ -672,6 +736,7 @@ export interface components {
             submission: components["schemas"]["Submission"];
             history: components["schemas"]["SubmissionHistory"];
             moderation: components["schemas"]["ModerationReport"] | null;
+            moderation_job?: components["schemas"]["ModerationJob"] | null;
         };
         /** Revision */
         Revision: {
@@ -1891,6 +1956,86 @@ export interface operations {
         };
     };
     reviews_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDetail"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+        };
+    };
+    reviews_moderation_retry: {
         parameters: {
             query?: never;
             header?: never;

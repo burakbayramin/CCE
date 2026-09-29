@@ -11,6 +11,8 @@ from cce.modules.contributions.repository import (
     record_event,
 )
 from cce.modules.contributions.schemas import (
+    ModerationAttempt,
+    ModerationJob,
     ModerationReport,
     ReviewCommand,
     ReviewDetail,
@@ -30,10 +32,34 @@ def read_review(connection: Connection, submission_id: UUID) -> ReviewDetail:
         .mappings()
         .one_or_none()
     )
+    job = (
+        connection.execute(
+            text("select * from ops_private.moderation_jobs where revision_id=:revision"),
+            {"revision": item.revision_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    job_detail = None
+    if job:
+        attempts = connection.execute(
+            text(
+                "select * from ops_private.moderation_attempts where job_id=:id "
+                "order by attempt_number desc limit 20"
+            ),
+            {"id": job["id"]},
+        ).mappings()
+        job_detail = ModerationJob.model_validate(
+            {
+                **job,
+                "attempts": [ModerationAttempt.model_validate(attempt) for attempt in attempts],
+            }
+        )
     return ReviewDetail(
         submission=item,
         history=read_history(connection, submission_id),
         moderation=ModerationReport.model_validate(row) if row else None,
+        moderation_job=job_detail,
     )
 
 
@@ -42,7 +68,7 @@ def start_review(
     actor: Actor,
     submission_id: UUID,
     payload: StartReview,
-    provider: ModerationProvider,
+    provider: ModerationProvider | None,
     *,
     test_mode: bool,
 ) -> ReviewDetail:
@@ -53,19 +79,27 @@ def start_review(
         or item.status != "SUBMITTED"
     ):
         raise ContributionError(409, "Başvuru veya incelenecek revizyon değişmiş; sayfayı yenile")
-    # Current adapter is bounded/local. A remote scanner must become a durable M3 job;
-    # do not hold this lock over a network/model call.
-    outcome = provider.scan(item.definition)
-    if outcome.is_fixture and not test_mode:
-        raise ContributionError(503, "Test moderasyonu gerçek içerikte kullanılamaz")
-    connection.execute(
-        text(
-            "insert into ops_private.submission_moderation "
-            "(revision_id,submission_id,result,provider,policy_version,is_fixture,detail) "
-            "values (:revision,:id,:result,:provider,:policy_version,:is_fixture,:detail)"
-        ),
-        {"revision": item.revision_id, "id": item.id, **asdict(outcome)},
-    )
+    if provider is not None:
+        # Only bounded test fixtures may run here. Real inference is a durable job,
+        # never performed inside the request transaction or under its row lock.
+        if not test_mode:
+            raise ContributionError(503, "Test moderasyonu gerçek içerikte kullanılamaz")
+        outcome = provider.scan(item.definition)
+        if not outcome.is_fixture:
+            raise ContributionError(503, "Yalnız açık test fixture'ı kullanılabilir")
+        connection.execute(
+            text(
+                "insert into ops_private.submission_moderation "
+                "(revision_id,submission_id,result,provider,policy_version,is_fixture,detail) "
+                "values (:revision,:id,:result,:provider,:policy_version,:is_fixture,:detail)"
+            ),
+            {"revision": item.revision_id, "id": item.id, **asdict(outcome)},
+        )
+    else:
+        connection.execute(
+            text("select ops_private.enqueue_moderation(:id,:revision)"),
+            {"id": item.id, "revision": item.revision_id},
+        )
     connection.execute(
         text(
             "update public.character_submissions set status='UNDER_REVIEW',version=version+1 "
@@ -74,6 +108,30 @@ def start_review(
         {"id": item.id},
     )
     record_event(connection, actor, read_one(connection, item.id), "START_REVIEW")
+    return read_review(connection, item.id)
+
+
+def retry_moderation(
+    connection: Connection,
+    submission_id: UUID,
+    payload: StartReview,
+) -> ReviewDetail:
+    item = read_one(connection, submission_id, lock=True)
+    if (
+        item.status != "UNDER_REVIEW"
+        or item.version != payload.expected_version
+        or item.revision_id != payload.revision_id
+    ):
+        raise ContributionError(409, "Güncel inceleme revizyonu gerekli")
+    review = read_review(connection, item.id)
+    if review.moderation and review.moderation.result != "ERROR":
+        raise ContributionError(409, "Tamamlanmış moderasyon tekrar denenemez")
+    if review.moderation_job and review.moderation_job.state not in {"ERROR", "PENDING", "RUNNING"}:
+        raise ContributionError(409, "Moderasyon işi tekrar denenemez")
+    connection.execute(
+        text("select ops_private.enqueue_moderation(:id,:revision)"),
+        {"id": item.id, "revision": item.revision_id},
+    )
     return read_review(connection, item.id)
 
 

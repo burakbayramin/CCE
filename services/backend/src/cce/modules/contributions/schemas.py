@@ -128,7 +128,27 @@ class ModerationReport(BaseModel):
     detail: str
 
 
+class ModerationAttempt(BaseModel):
+    id: UUID
+    attempt_number: int
+    state: Literal["RUNNING", "SUCCEEDED", "ERROR", "CANCELLED"]
+    started_at: datetime
+    finished_at: datetime | None
+    error_code: str | None
+    result: Literal["PASS", "REVIEW", "BLOCK", "ERROR"] | None
+
+
+class ModerationJob(BaseModel):
+    id: UUID
+    state: Literal["PENDING", "RUNNING", "SUCCEEDED", "ERROR", "CANCELLED"]
+    attempt_number: int
+    error_code: str | None
+    lease_until: datetime | None
+    attempts: list[ModerationAttempt] = Field(default_factory=list)
+
+
 class ReviewDetail(BaseModel):
     submission: Submission
     history: SubmissionHistory
     moderation: ModerationReport | None
+    moderation_job: ModerationJob | None = None

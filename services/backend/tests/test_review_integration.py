@@ -203,8 +203,8 @@ def test_unconfigured_moderation_fails_closed(review_accounts) -> None:
     (owner, contributor), _ = review_accounts
     with TestClient(create_app(settings())) as api:
         report = start(api, submitted(api, contributor), owner)
-        assert report["moderation"]["result"] == "ERROR"
-        assert report["moderation"]["is_fixture"] is False
+        assert report["moderation"] is None
+        assert report["moderation_job"]["state"] == "PENDING"
         item = report["submission"]
         assert (
             api.post(

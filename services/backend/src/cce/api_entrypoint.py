@@ -9,7 +9,7 @@ from cce.core.config import Settings
 from cce.infrastructure.database import create_database, database_ready
 from cce.infrastructure.telemetry import RequestTelemetry, configure_logging
 from cce.modules.contributions.avatar_router import avatar_router
-from cce.modules.contributions.moderation import ModerationProvider, UnavailableModeration
+from cce.modules.contributions.moderation import ModerationProvider
 from cce.modules.contributions.review_router import review_router
 from cce.modules.contributions.router import contributions_router
 from cce.modules.identity.authentication import TokenVerifier
@@ -51,7 +51,7 @@ def create_app(
             engine,
             owner_engine,
             verifier,
-            moderation or UnavailableModeration(),
+            moderation,
             test_mode=config.environment == "test",
         )
     )
