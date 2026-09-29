@@ -14,11 +14,12 @@ test('Owner sees failed local scan and retries without opening approval', async 
   await expect(page.getByRole('heading', { name: 'Yerel tarama: ERROR' })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'MODEL_UNAVAILABLE' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Revizyonu onayla' })).toBeDisabled();
-  await expect(page.locator('details')).toContainText('#1 · ERROR · ERROR · MODEL_UNAVAILABLE');
+  const attempts = page.locator('section[aria-label="Yerel moderasyon işi"] details');
+  await expect(attempts).toContainText('#1 · ERROR · ERROR · MODEL_UNAVAILABLE');
 
   await page.getByRole('button', { name: 'Moderasyonu yeniden dene' }).click();
   await expect(page.getByRole('heading', { name: 'Yerel tarama: PENDING' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Moderasyonu yeniden dene' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Revizyonu onayla' })).toBeDisabled();
-  await expect(page.locator('details')).toContainText('#1 · ERROR · ERROR · MODEL_UNAVAILABLE');
+  await expect(attempts).toContainText('#1 · ERROR · ERROR · MODEL_UNAVAILABLE');
 });
