@@ -59,9 +59,38 @@ state gönderemez. `GET` aynı private artifact'ı okur; kayıt yoksa `null` dö
   açık sürüm değişikliği gerektirir; mevcut tanımların baseline'ı otomatik değişmez.
 
 M3.1 canlı karakter, runtime memory/goal/relationship veya aktivasyon üretmez;
-M3.2–M3.6 uygulanmış sayılmaz. Gerçek moderasyon eksik olduğundan mevcut normal
-başvurular onaylanamaz; derleme akışının başarılı uçtan uca testi yalnız izole,
+M3.2 kısmen uygulanmıştır, M3.3–M3.6 uygulanmış sayılmaz. Gerçek moderasyon
+eksik olduğundan mevcut normal başvurular onaylanamaz; derleme akışının başarılı uçtan uca testi yalnız izole,
 etiketli fixture ile yapılır. Fixture artifact'ı gerçek aktivasyon izni değildir.
+
+## M3.2 — Yerel moderasyon işletim sınırı
+
+İnceleme başlatıldığında kalıcı moderasyon işi oluşur; Owner `PENDING`, `RUNNING`
+ve hata durumunu görebilir. `cce-moderation-worker` adlı ayrı CLI başlatıcısı
+yalnız `cce_worker_cpu` veritabanı kimliğini kabul eder. Başlatmak için
+`CCE_ENVIRONMENT`, `CCE_WORKER_DATABASE_URL`, `CCE_STORAGE_URL`,
+`CCE_SUPABASE_PUBLISHABLE_KEY`, `CCE_MODERATION_AUTH_USER_ID`,
+`CCE_MODERATION_AUTH_EMAIL`, `CCE_MODERATION_AUTH_PASSWORD` ve
+`CCE_MODERATION_SCANNER_FACTORY=paket.modul:fabrika` gerekir. Son değer, private
+avatar okuyucusunu parametre olarak alan bir scanner fabrikasıdır. Repo henüz
+gerçek scanner fabrikası sunmaz; CLI Compose ile otomatik başlatılmaz.
+Yapılandırılmamış scanner iş kuyruğunu tüketmez. Test fixture'larını gerçek
+içerik için scanner olarak yapılandırma.
+
+Worker Auth hesabı yalnız güvenilir Supabase yönetim aracıyla oluşturulmuş,
+e-postası onaylı ayrı bir kullanıcı olmalı; yöneticisi `app_metadata.cce_role`
+değerini `moderation_worker` olarak atamalıdır. Bu metadata kullanıcı tarafından
+değiştirilemez. Şifre/JWT ve servis anahtarı repoya veya web ortamına konmaz.
+Worker hesabı CCE uygulama kimliği değildir. Storage politikası yalnız kendisine
+atanmış `RUNNING` işin, geçerli lease'li, güncel inceleme revizyonundaki avatarına
+authenticated GET izni verir; listeleme/yazma izni vermez. Worker DB bağlantısı
+kapandıktan sonra bu hesabın kısa ömürlü JWT'siyle dosyayı indirir, 512 KiB sınırını
+ve kayıtlı SHA-256'yı doğrular. İzin/okuma/doğrulama hatası onayı açmaz.
+
+Bu Storage sınırı için izole veritabanı ve gerçek Auth/Storage entegrasyon testi
+hazırlandı ancak bu ortamda henüz çalıştırılamadı. Yerel metin/görsel model,
+model timeout sınırı ve hedef makine kabulü de açık; bunlar bitmeden moderasyon
+sonucu gerçek onay veya aktivasyon kanıtı değildir.
 
 ## Araç sürümleri
 
