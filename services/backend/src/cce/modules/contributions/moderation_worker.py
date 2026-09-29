@@ -5,6 +5,7 @@ image implementation must be supplied before real content can pass. The existing
 request-path ModerationProvider is test-only and cannot be used here.
 """
 
+from threading import Event
 from typing import Literal, Protocol
 from uuid import UUID
 
@@ -130,3 +131,25 @@ def run_once(engine: Engine, scanner: LocalScanner) -> bool:
             },
         )
     return True
+
+
+def run_loop(
+    engine: Engine,
+    scanner: LocalScanner,
+    stop: Event,
+    *,
+    idle_seconds: float = 2.0,
+) -> None:
+    """Poll until stopped; never turn a database failure into a scan verdict.
+
+    An operator must explicitly supply a calibrated scanner. The unconfigured
+    placeholder is rejected so an accidentally started process cannot consume
+    pending work. The caller owns engine disposal and process signal handling.
+    """
+    if idle_seconds <= 0:
+        raise ValueError("idle_seconds must be positive")
+    if isinstance(scanner, UnconfiguredLocalScanner):
+        raise ValueError("A configured local scanner is required")
+    while not stop.is_set():
+        if not run_once(engine, scanner):
+            stop.wait(idle_seconds)

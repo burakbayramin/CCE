@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from threading import Event
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,7 @@ from cce.modules.contributions.moderation_worker import (
     ScanEvaluation,
     ScanWork,
     UnconfiguredLocalScanner,
+    run_loop,
     run_once,
 )
 
@@ -124,3 +126,60 @@ def test_malformed_evidence_rejected():
         ScanWork.model_validate(work() | {"avatar_sha256": "b" * 64})
     with pytest.raises(ValidationError):
         ScanEvaluation(result="PASS", provider="x", policy_version="v1", error_code="SCAN_FAILED")
+
+
+def test_worker_loop_processes_claims_and_stops_without_idle_wait():
+    stop = Event()
+    db = Database(work())
+    calls = 0
+
+    class Scanner:
+        def evaluate(self, request):
+            nonlocal calls
+            calls += 1
+            assert db.active is False
+            if calls == 2:
+                stop.set()
+            return ScanEvaluation(
+                result="PASS",
+                provider="fixture",
+                policy_version="test-v1",
+                text_checked=True,
+            )
+
+    run_loop(db, Scanner(), stop, idle_seconds=0.01)
+    assert calls == 2
+
+
+def test_worker_loop_waits_when_queue_is_empty():
+    class Stop:
+        waits = []
+
+        def is_set(self):
+            return bool(self.waits)
+
+        def wait(self, seconds):
+            self.waits.append(seconds)
+
+    stop = Stop()
+    db = Database(None)
+
+    class Scanner:
+        def evaluate(self, request):
+            raise AssertionError("Empty queue must not call the scanner")
+
+    run_loop(db, Scanner(), stop, idle_seconds=0.25)
+    assert stop.waits == [0.25]
+    assert db.written is None
+
+
+def test_worker_loop_rejects_invalid_poll_interval():
+    with pytest.raises(ValueError, match="idle_seconds"):
+        run_loop(Database(None), UnconfiguredLocalScanner(), Event(), idle_seconds=0)
+
+
+def test_worker_loop_never_consumes_work_without_a_scanner():
+    db = Database(work())
+    with pytest.raises(ValueError, match="configured local scanner"):
+        run_loop(db, UnconfiguredLocalScanner(), Event())
+    assert db.written is None
