@@ -63,6 +63,10 @@ class LocalScanner(Protocol):
     def evaluate(self, work: ScanWork) -> ScanEvaluation: ...
 
 
+class AvatarUnavailable(Exception):
+    """The source-bound private avatar could not be read and verified."""
+
+
 class UnconfiguredLocalScanner:
     def evaluate(self, work: ScanWork) -> ScanEvaluation:
         return failure("MODEL_UNAVAILABLE")
@@ -81,7 +85,9 @@ def failure(
     )
 
 
-def run_once(engine: Engine, scanner: LocalScanner) -> bool:
+def run_once(
+    engine: Engine, scanner: LocalScanner, *, auth_worker_user_id: UUID | None = None
+) -> bool:
     """Claim -> release connection -> scan -> fenced commit.
 
     True means work was claimed, NOT that it passed moderation. Exceptions never
@@ -91,7 +97,15 @@ def run_once(engine: Engine, scanner: LocalScanner) -> bool:
     with engine.begin() as connection:
         if connection.execute(text("select current_user")).scalar_one() != "cce_worker_cpu":
             raise ValueError("Moderation requires the restricted cce_worker_cpu identity")
-        payload = connection.execute(text("select ops_private.claim_moderation()")).scalar_one()
+        if auth_worker_user_id is None:
+            # Legacy protocol tests have no Auth worker identity. Real service
+            # startup always supplies one and uses the assigned-claim path.
+            payload = connection.execute(text("select ops_private.claim_moderation()")).scalar_one()
+        else:
+            payload = connection.execute(
+                text("select ops_private.claim_moderation_for_worker(:user)"),
+                {"user": auth_worker_user_id},
+            ).scalar_one()
     if payload is None:
         return False
     work = ScanWork.model_validate(payload)
@@ -107,6 +121,8 @@ def run_once(engine: Engine, scanner: LocalScanner) -> bool:
             evaluation = failure("AVATAR_UNAVAILABLE")
     except TimeoutError:
         evaluation = failure("MODEL_TIMEOUT")
+    except AvatarUnavailable:
+        evaluation = failure("AVATAR_UNAVAILABLE")
     except Exception:
         # Provider errors may contain private inputs, URLs or raw model output.
         evaluation = failure("SCAN_FAILED")
@@ -138,6 +154,7 @@ def run_loop(
     scanner: LocalScanner,
     stop: Event,
     *,
+    auth_worker_user_id: UUID | None = None,
     idle_seconds: float = 2.0,
 ) -> None:
     """Poll until stopped; never turn a database failure into a scan verdict.
@@ -151,5 +168,5 @@ def run_loop(
     if isinstance(scanner, UnconfiguredLocalScanner):
         raise ValueError("A configured local scanner is required")
     while not stop.is_set():
-        if not run_once(engine, scanner):
+        if not run_once(engine, scanner, auth_worker_user_id=auth_worker_user_id):
             stop.wait(idle_seconds)

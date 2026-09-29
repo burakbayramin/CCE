@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from test_character_definitions import proposal
 
 from cce.modules.contributions.moderation_worker import (
+    AvatarUnavailable,
     ScanEvaluation,
     ScanWork,
     UnconfiguredLocalScanner,
@@ -32,6 +33,7 @@ class Database:
         self.payload = payload
         self.active = False
         self.written = None
+        self.claim_params = None
 
     @contextmanager
     def begin(self):
@@ -49,6 +51,7 @@ class Database:
             self.value = "cce_worker_cpu"
         elif "claim_moderation" in statement:
             self.value = self.payload
+            self.claim_params = params
         else:
             self.written = params
         return self
@@ -183,3 +186,22 @@ def test_worker_loop_never_consumes_work_without_a_scanner():
     with pytest.raises(ValueError, match="configured local scanner"):
         run_loop(db, UnconfiguredLocalScanner(), Event())
     assert db.written is None
+
+
+def test_private_avatar_failure_never_opens_approval_gate():
+    db = Database(work(True))
+
+    class Scanner:
+        def evaluate(self, request):
+            raise AvatarUnavailable
+
+    assert run_once(db, Scanner()) is True
+    assert db.written["verdict"] == "ERROR"
+    assert db.written["error"] == "AVATAR_UNAVAILABLE"
+
+
+def test_auth_worker_claim_is_bound_to_its_identity():
+    user_id = uuid4()
+    db = Database(None)
+    assert run_once(db, UnconfiguredLocalScanner(), auth_worker_user_id=user_id) is False
+    assert db.claim_params == {"user": user_id}
