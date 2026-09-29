@@ -86,6 +86,8 @@ atanmış `RUNNING` işin, geçerli lease'li, güncel inceleme revizyonundaki av
 authenticated GET izni verir; listeleme/yazma izni vermez. Worker DB bağlantısı
 kapandıktan sonra bu hesabın kısa ömürlü JWT'siyle dosyayı indirir, 512 KiB sınırını
 ve kayıtlı SHA-256'yı doğrular. İzin/okuma/doğrulama hatası onayı açmaz.
+CLI başlarken yapılandırılmış Auth hesabına giriş yapıp kullanıcı kimliğini doğrular;
+bu doğrulama başarısızsa scanner yüklenmez ve kuyruktan iş alınmaz.
 
 Bu Storage sınırı için izole veritabanı ve gerçek Auth/Storage entegrasyon testi
 hazırlandı ancak bu ortamda henüz çalıştırılamadı. Yerel metin/görsel model,

@@ -134,6 +134,7 @@ def main() -> None:
             auth_email=settings.moderation_auth_email,
             auth_password=settings.moderation_auth_password,
         )
+        avatar_reader.verify_identity()
         scanner = load_scanner(settings.moderation_scanner_factory, avatar_reader)
         run_loop(
             engine,

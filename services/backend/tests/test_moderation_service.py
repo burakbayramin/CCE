@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from cce.modules.contributions import moderation_service
 from cce.modules.contributions.moderation_service import WorkerSettings, load_scanner
+from cce.modules.contributions.moderation_worker import AvatarUnavailable
 
 
 def settings(**overrides):
@@ -105,3 +106,32 @@ def test_worker_engine_uses_one_restricted_connection(monkeypatch):
     assert captured["pool_size"] == 1
     assert captured["max_overflow"] == 0
     assert captured["hide_parameters"] is True
+
+
+def test_worker_startup_rejects_bad_auth_before_loading_scanner_or_claiming(monkeypatch):
+    calls = []
+
+    class Engine:
+        def dispose(self):
+            calls.append("dispose")
+
+    class Reader:
+        def __init__(self, engine, **kwargs):
+            calls.append("reader")
+
+        def verify_identity(self):
+            calls.append("verify")
+            raise AvatarUnavailable
+
+    monkeypatch.setattr(moderation_service, "WorkerSettings", lambda: settings())
+    monkeypatch.setattr(moderation_service, "create_worker_engine", lambda _: Engine())
+    monkeypatch.setattr(moderation_service, "ModerationAvatarReader", Reader)
+    monkeypatch.setattr(moderation_service.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(
+        moderation_service,
+        "load_scanner",
+        lambda *args: pytest.fail("No scanner should load before Auth verification"),
+    )
+    with pytest.raises(AvatarUnavailable):
+        moderation_service.main()
+    assert calls == ["reader", "verify", "dispose"]

@@ -83,6 +83,29 @@ def test_avatar_reader_checks_path_and_digest_outside_db_transaction(monkeypatch
     assert calls == ["/auth/v1/token", f"/storage/v1/object/authenticated/cce-avatars/{path}"]
 
 
+@pytest.mark.parametrize("mode", ["valid", "wrong_user", "invalid_password", "malformed"])
+def test_worker_identity_is_verified_before_claiming_work(monkeypatch, mode):
+    db = Database(None)
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path)
+        if mode == "invalid_password":
+            return httpx.Response(401)
+        if mode == "malformed":
+            return httpx.Response(200, json={"access_token": "jwt"})
+        user_id = str(uuid4()) if mode == "wrong_user" else str(AUTH_USER_ID)
+        return httpx.Response(200, json={"access_token": "jwt", "user": {"id": user_id}})
+
+    reader = build_reader(db, monkeypatch, handler)
+    if mode == "valid":
+        reader.verify_identity()
+    else:
+        with pytest.raises(AvatarUnavailable):
+            reader.verify_identity()
+    assert calls == ["/auth/v1/token"]
+
+
 @pytest.mark.parametrize("path", [None, "../other.png", "not-a-uuid/avatar.png"])
 def test_avatar_reader_rejects_unbound_path_before_network(monkeypatch, path):
     scan = ScanWork.model_validate(work(True))
