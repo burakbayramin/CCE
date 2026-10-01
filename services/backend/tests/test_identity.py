@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
+from cce import api_entrypoint
 from cce.api_entrypoint import create_app
 from cce.core.config import Settings
 from cce.modules.identity.authentication import TokenVerifier
@@ -87,7 +88,10 @@ def test_signature_required_and_metadata_does_not_define_actor(
         verifier.verify(jwt.encode(payload, key, algorithm="ES256"))
 
 
-def test_missing_and_malformed_tokens_never_reach_database() -> None:
+def test_missing_and_malformed_tokens_never_reach_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_entrypoint, "database_ready", lambda _: True)
     with TestClient(create_app(config())) as client:
         for path in ("/identity/me", "/identity/owner"):
             assert client.get(path).status_code == 401

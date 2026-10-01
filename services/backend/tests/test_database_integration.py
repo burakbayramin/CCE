@@ -3,7 +3,7 @@ import os
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
-from local_environment import API_DSN, DB_PORT
+from local_environment import ADMIN_DSN, API_DSN, DB_PORT
 from pydantic import SecretStr
 
 from cce.api_entrypoint import create_app
@@ -25,13 +25,13 @@ def test_local_api_role_and_readiness() -> None:
     ) as connection:
         assert connection.execute("select current_user").fetchone() == ("cce_api",)
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            1,
+            2,
         )
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             connection.execute("set role cce_migrator")
         connection.rollback()
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            connection.execute("update ops_private.schema_version set version = 2")
+            connection.execute("update ops_private.schema_version set version = 3")
         connection.rollback()
     config = Settings(
         environment="test",
@@ -55,3 +55,21 @@ def test_worker_has_separate_restricted_identity() -> None:
         assert connection.execute("select current_user").fetchone() == ("cce_worker_cpu",)
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             connection.execute("select * from ops_private.schema_version")
+
+
+def test_migration_owner_cannot_update_marker_under_forced_rls() -> None:
+    if os.environ.get("CCE_ENVIRONMENT") != "test":
+        pytest.fail("Integration tests require isolated local fixtures")
+    with psycopg.connect(ADMIN_DSN) as connection:
+        connection.execute("set role cce_migrator")
+        assert connection.execute("select current_user").fetchone() == ("cce_migrator",)
+        assert (
+            connection.execute(
+                "update ops_private.schema_version set version=2 where singleton returning version"
+            ).fetchone()
+            is None
+        )
+        connection.execute("reset role")
+        assert connection.execute("select version from ops_private.schema_version").fetchone() == (
+            2,
+        )

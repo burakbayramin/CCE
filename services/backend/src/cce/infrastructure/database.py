@@ -3,6 +3,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cce.core.config import Settings
 
+REQUIRED_SCHEMA_VERSION = 2
+
 
 def create_database(settings: Settings, *, owner_commands: bool = False) -> Engine:
     dsn = settings.engine_database_url if owner_commands else settings.database_url
@@ -28,10 +30,11 @@ def database_ready(engine: Engine) -> bool:
                     text(
                         "SELECT current_user = 'cce_api' AND NOT r.rolsuper "
                         "AND NOT r.rolbypassrls AND NOT r.rolcreaterole "
-                        "AND NOT r.rolcreatedb AND v.version = 1 "
+                        "AND NOT r.rolcreatedb AND v.version = :version "
                         "FROM pg_roles r CROSS JOIN ops_private.schema_version v "
                         "WHERE r.rolname = current_user AND v.singleton = true"
-                    )
+                    ),
+                    {"version": REQUIRED_SCHEMA_VERSION},
                 ).scalar_one()
             )
     except SQLAlchemyError:

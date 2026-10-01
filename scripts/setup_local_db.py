@@ -4,6 +4,7 @@ import argparse
 import os
 
 import psycopg
+from cce.infrastructure.database import REQUIRED_SCHEMA_VERSION
 from psycopg import sql
 
 
@@ -25,10 +26,16 @@ def main() -> None:
         version = connection.execute(
             "select version from ops_private.schema_version"
         ).fetchone()
-        if version != (1,):
+        if version != (REQUIRED_SCHEMA_VERSION,):
             raise SystemExit(
                 "Expected the CCE foundation migration in the local database"
             )
+        # The script accepts loopback only; no runtime role can turn this on.
+        # Reprovisioning a former test stack as local must switch it off again.
+        connection.execute(
+            "update ops_private.fixture_approval_policy set enabled=%s where singleton",
+            (os.environ["CCE_ENVIRONMENT"] == "test",),
+        )
         for role, password in [
             ("cce_api", "cce-local-api-only"),
             ("cce_engine", "cce-local-engine-only"),

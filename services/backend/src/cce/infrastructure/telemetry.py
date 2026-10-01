@@ -51,7 +51,18 @@ class RequestTelemetry:
 
         try:
             await self.app(scope, receive, send_response)
-        except Exception:
+        except Exception as error:
+            # Preserve only an allowlisted class name and the public request ID;
+            # exception text/tracebacks can contain private DSNs or tokens.
+            logger.error(
+                json.dumps(
+                    {
+                        "event": "http_exception",
+                        "request_id": request_id,
+                        "exception_type": type(error).__name__,
+                    }
+                )
+            )
             if not response_started:
                 await send_response(
                     {

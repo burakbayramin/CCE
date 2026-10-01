@@ -8,7 +8,12 @@ from cce.modules.identity.domain import Actor, AuthenticationFailed
 
 @contextmanager
 def actor_transaction(engine: Engine, actor: Actor) -> Iterator[Connection]:
-    """Only verified actors enter repositories; SET LOCAL never leaks through the pool."""
+    """Only verified actors enter repositories; SET LOCAL never leaks through the pool.
+
+    Custom Postgres GUCs are writable by the DB role: current_identity() trusts
+    this API boundary to verify JWTs and never accepts an actor from request data.
+    SQL execution as cce_api/cce_engine is therefore a trusted-server capability.
+    """
     with engine.begin() as connection:
         connection.execute(
             text(

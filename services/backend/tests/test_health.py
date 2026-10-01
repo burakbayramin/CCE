@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr, ValidationError
 
+from cce import api_entrypoint
 from cce.api_entrypoint import create_app
 from cce.core.config import Settings
 from cce.infrastructure.telemetry import logger
@@ -19,8 +20,10 @@ def settings() -> Settings:
     )
 
 
-def test_liveness_survives_actual_db_connection_failure() -> None:
+def test_liveness_survives_actual_db_connection_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_entrypoint, "database_ready", lambda _: True)
     with TestClient(create_app(settings())) as client:
+        monkeypatch.setattr(api_entrypoint, "database_ready", lambda _: False)
         assert client.get("/health/live").status_code == 200
         response = client.get("/health/ready")
         assert response.status_code == 503
@@ -32,6 +35,7 @@ def test_liveness_survives_actual_db_connection_failure() -> None:
 def test_correlation_and_logs_never_include_request_secrets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(api_entrypoint, "database_ready", lambda _: True)
     records: list[str] = []
     monkeypatch.setattr(logger, "info", records.append)
     request_id = str(uuid4())
@@ -49,8 +53,11 @@ def test_correlation_and_logs_never_include_request_secrets(
 
 
 def test_unexpected_exception_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_entrypoint, "database_ready", lambda _: True)
     records: list[str] = []
+    failures: list[str] = []
     monkeypatch.setattr(logger, "info", records.append)
+    monkeypatch.setattr(logger, "error", failures.append)
     app = create_app(settings())
 
     @app.get("/test-error")
@@ -62,6 +69,19 @@ def test_unexpected_exception_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.status_code == 500
     assert response.json() == {"detail": "Internal server error"}
     assert "private-dsn" not in "".join(records)
+    assert len(failures) == 1
+    assert json.loads(failures[0])["exception_type"] == "RuntimeError"
+    assert json.loads(failures[0])["request_id"] == response.headers["x-request-id"]
+    assert "private-dsn" not in failures[0]
+
+
+def test_startup_rejects_unavailable_or_privileged_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_entrypoint, "database_ready", lambda _: False)
+    with pytest.raises(RuntimeError, match="API database identity or schema"):
+        with TestClient(create_app(settings())):
+            pass
 
 
 @pytest.mark.parametrize("user", ["postgres", "cce_migrator", "cce_worker_cpu"])

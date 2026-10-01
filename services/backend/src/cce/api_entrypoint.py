@@ -35,10 +35,14 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        yield
-        engine.dispose()
-        if owner_engine is not None:
-            owner_engine.dispose()
+        try:
+            if not database_ready(engine):
+                raise RuntimeError("API database identity or schema is unavailable")
+            yield
+        finally:
+            engine.dispose()
+            if owner_engine is not None:
+                owner_engine.dispose()
 
     app = FastAPI(title="CCE Control Plane", version="0.1.0", lifespan=lifespan)
     app.add_middleware(RequestTelemetry)
