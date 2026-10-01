@@ -4,13 +4,15 @@ import json
 from pathlib import Path
 
 from cce.modules.contributions.schemas import CharacterProposal, Personality
+from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "apps/web/src/features/character-submissions/proposal-contract.json"
 
 
-def limits() -> dict[str, object]:
-    fields = CharacterProposal.model_json_schema()["properties"]
+def limits(proposal_model: type[BaseModel] = CharacterProposal) -> dict[str, object]:
+    schema = proposal_model.model_json_schema()
+    fields = schema["properties"]
     axes = Personality.model_json_schema()["properties"]
     texts = {
         name: spec["maxLength"]
@@ -23,6 +25,13 @@ def limits() -> dict[str, object]:
         if spec.get("type") == "array"
     }
     return {
+        # Include every field/type and all constraints, including required,
+        # additionalProperties, enum/const, and list item minima. A newly added
+        # field cannot silently disappear from the filtered UI limit tables.
+        "validation_schema": schema,
+        "strip_whitespace": proposal_model.model_config.get(
+            "str_strip_whitespace", False
+        ),
         "schema_version": fields["schema_version"]["default"],
         "texts": texts,
         "lists": lists,

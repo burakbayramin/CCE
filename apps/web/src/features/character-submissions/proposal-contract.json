@@ -1,4 +1,240 @@
 {
+  "validation_schema": {
+    "$defs": {
+      "Personality": {
+        "additionalProperties": false,
+        "properties": {
+          "openness": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Openness",
+            "type": "integer"
+          },
+          "sociability": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Sociability",
+            "type": "integer"
+          },
+          "conscientiousness": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Conscientiousness",
+            "type": "integer"
+          },
+          "assertiveness": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Assertiveness",
+            "type": "integer"
+          },
+          "warmth": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Warmth",
+            "type": "integer"
+          }
+        },
+        "title": "Personality",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "const": 1,
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "name": {
+        "default": "",
+        "maxLength": 80,
+        "title": "Name",
+        "type": "string"
+      },
+      "pronouns": {
+        "default": "",
+        "maxLength": 60,
+        "title": "Pronouns",
+        "type": "string"
+      },
+      "age": {
+        "default": 18,
+        "maximum": 10000,
+        "minimum": 18,
+        "title": "Age",
+        "type": "integer"
+      },
+      "introduction": {
+        "default": "",
+        "maxLength": 400,
+        "title": "Introduction",
+        "type": "string"
+      },
+      "occupation": {
+        "default": "",
+        "maxLength": 120,
+        "title": "Occupation",
+        "type": "string"
+      },
+      "cultural_background": {
+        "default": "",
+        "maxLength": 400,
+        "title": "Cultural Background",
+        "type": "string"
+      },
+      "personality": {
+        "$ref": "#/$defs/Personality"
+      },
+      "strengths": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Strengths",
+        "type": "array"
+      },
+      "flaws": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Flaws",
+        "type": "array"
+      },
+      "values": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Values",
+        "type": "array"
+      },
+      "fears": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Fears",
+        "type": "array"
+      },
+      "motivations": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Motivations",
+        "type": "array"
+      },
+      "likes": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Likes",
+        "type": "array"
+      },
+      "dislikes": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Dislikes",
+        "type": "array"
+      },
+      "humor": {
+        "default": "",
+        "maxLength": 200,
+        "title": "Humor",
+        "type": "string"
+      },
+      "speech_style": {
+        "default": "",
+        "maxLength": 300,
+        "title": "Speech Style",
+        "type": "string"
+      },
+      "backstory": {
+        "default": "",
+        "maxLength": 4000,
+        "title": "Backstory",
+        "type": "string"
+      },
+      "important_events": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Important Events",
+        "type": "array"
+      },
+      "initial_goals": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Initial Goals",
+        "type": "array"
+      },
+      "known_people": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Known People",
+        "type": "array"
+      },
+      "secret_proposals": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "title": "Secret Proposals",
+        "type": "array"
+      },
+      "adult_appearance_confirmed": {
+        "default": false,
+        "title": "Adult Appearance Confirmed",
+        "type": "boolean"
+      },
+      "original_character_confirmed": {
+        "default": false,
+        "title": "Original Character Confirmed",
+        "type": "boolean"
+      }
+    },
+    "title": "CharacterProposal",
+    "type": "object"
+  },
+  "strip_whitespace": true,
   "schema_version": 1,
   "texts": {
     "name": 80,
@@ -11,25 +247,79 @@
     "backstory": 4000
   },
   "lists": {
-    "strengths": {"max_items": 8, "max_length": 200},
-    "flaws": {"max_items": 8, "max_length": 200},
-    "values": {"max_items": 8, "max_length": 200},
-    "fears": {"max_items": 8, "max_length": 200},
-    "motivations": {"max_items": 8, "max_length": 200},
-    "likes": {"max_items": 8, "max_length": 200},
-    "dislikes": {"max_items": 8, "max_length": 200},
-    "important_events": {"max_items": 8, "max_length": 200},
-    "initial_goals": {"max_items": 8, "max_length": 200},
-    "known_people": {"max_items": 8, "max_length": 200},
-    "secret_proposals": {"max_items": 8, "max_length": 200}
+    "strengths": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "flaws": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "values": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "fears": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "motivations": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "likes": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "dislikes": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "important_events": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "initial_goals": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "known_people": {
+      "max_items": 8,
+      "max_length": 200
+    },
+    "secret_proposals": {
+      "max_items": 8,
+      "max_length": 200
+    }
   },
   "axes": {
-    "openness": {"min": 0, "max": 100},
-    "sociability": {"min": 0, "max": 100},
-    "conscientiousness": {"min": 0, "max": 100},
-    "assertiveness": {"min": 0, "max": 100},
-    "warmth": {"min": 0, "max": 100}
+    "openness": {
+      "min": 0,
+      "max": 100
+    },
+    "sociability": {
+      "min": 0,
+      "max": 100
+    },
+    "conscientiousness": {
+      "min": 0,
+      "max": 100
+    },
+    "assertiveness": {
+      "min": 0,
+      "max": 100
+    },
+    "warmth": {
+      "min": 0,
+      "max": 100
+    }
   },
-  "age": {"min": 18, "max": 10000},
-  "confirmations": ["adult_appearance_confirmed", "original_character_confirmed"]
+  "age": {
+    "min": 18,
+    "max": 10000
+  },
+  "confirmations": [
+    "adult_appearance_confirmed",
+    "original_character_confirmed"
+  ]
 }
