@@ -1,21 +1,104 @@
 import Link from 'next/link';
 import { login, signup } from '../app/(auth)/actions';
 import { authConfig } from '../lib/supabase/config';
+import { Card, Notice, Page, PageHeader } from './ui';
 
-export function AuthForm({ mode, error, confirm }: { mode: 'login' | 'signup'; error: boolean; confirm?: boolean }) {
+export function AuthForm({
+  mode,
+  error,
+  confirm,
+}: {
+  mode: 'login' | 'signup';
+  error: boolean;
+  confirm?: boolean;
+}) {
   const configured = Boolean(authConfig());
-  return <main className="mx-auto max-w-lg px-6 py-20">
-    <Link href="/" className="text-sm text-teal-700">CCE / Ana sayfa</Link>
-    <h1 className="mt-6 text-3xl font-semibold">{mode === 'login' ? 'Giriş yap' : 'Katkıcı hesabı oluştur'}</h1>
-    <p className="mt-4 text-slate-600">Katkıcılar dünyaya karakter önerebilir. Karakterlerle sohbet yetkisi yalnız World Owner’a aittir.</p>
-    {!configured ? <p role="alert" className="mt-6">Yerel Auth yapılandırması eksik. README’deki kurulum adımlarını tamamla.</p> :
-      <form action={mode === 'login' ? login : signup} className="mt-8 space-y-5">
-        {error && <p role="alert">İşlem tamamlanamadı. Bilgilerini kontrol edip yeniden dene.</p>}
-        {confirm && <p role="status">Hesabını doğrulamak için e-postanı kontrol et.</p>}
-        <label className="block">E-posta<input className="mt-2 block w-full rounded border p-3" name="email" type="email" maxLength={254} autoComplete="email" required /></label>
-        <label className="block">Şifre (en az 12 karakter)<input className="mt-2 block w-full rounded border p-3" name="password" type="password" minLength={12} maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required /></label>
-        <button className="rounded bg-slate-900 px-5 py-3 text-white" type="submit">{mode === 'login' ? 'Giriş yap' : 'Kayıt ol'}</button>
-      </form>}
-    <Link className="mt-6 block text-teal-700" href={mode === 'login' ? '/signup' : '/login'}>{mode === 'login' ? 'Yeni hesap oluştur' : 'Mevcut hesapla giriş yap'}</Link>
-  </main>;
+  const isSignup = mode === 'signup';
+
+  return (
+    <Page width="narrow">
+      <PageHeader
+        eyebrow={
+          <span className="font-mono text-xs tracking-[0.18em] text-ink-500">
+            {isSignup ? 'YENİ HESAP' : 'YETKİLİ GİRİŞ'}
+          </span>
+        }
+        title={isSignup ? 'Katkıcı hesabı oluştur' : 'Giriş yap'}
+        description="Katkıcılar dünyaya karakter önerebilir. Karakterlerle sohbet ve dünya üzerinde etki yetkisi yalnız World Owner'a aittir."
+      />
+
+      <Card className="px-5 py-6 sm:px-7 sm:py-8">
+        {!configured ? (
+          <Notice tone="warning" title="Yerel Auth yapılandırması eksik">
+            README&apos;deki kurulum adımlarını tamamla. `apps/web/.env.local` içindeki
+            publishable key eksik olduğu için giriş çalışmıyor.
+          </Notice>
+        ) : (
+          <form action={isSignup ? signup : login} className="space-y-5">
+            {error && (
+              <Notice tone="danger" role="alert" title="İşlem tamamlanamadı">
+                Bilgilerini kontrol edip yeniden dene. Şifrenin en az 12 karakter olması gerekir.
+              </Notice>
+            )}
+            {confirm && (
+              <Notice tone="info" role="status" title="E-postanı kontrol et">
+                Hesabını doğrulamak için gönderilen bağlantıyı aç. Doğrulamadan önce giriş yapamazsın.
+              </Notice>
+            )}
+
+            <div>
+              <label htmlFor="email" className="text-sm font-semibold text-ink-800">
+                E-posta
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                maxLength={254}
+                autoFocus
+                className="cce-input mt-1.5"
+                placeholder="ornek@eposta.com"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="text-sm font-semibold text-ink-800">
+                Şifre
+                <span className="ml-1.5 font-normal text-ink-500">(en az 12 karakter)</span>
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minLength={12}
+                maxLength={128}
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
+                className="cce-input mt-1.5"
+                placeholder="••••••••••••"
+              />
+              {isSignup && (
+                <p className="mt-1.5 text-xs text-ink-500">
+                  Uzun bir cümle, kısa bir parolanın çok daha güvenlisidir.
+                </p>
+              )}
+            </div>
+
+            <button type="submit" className="cce-btn cce-btn-primary w-full">
+              {isSignup ? 'Kayıt ol' : 'Giriş yap'}
+            </button>
+          </form>
+        )}
+      </Card>
+
+      <p className="mt-6 text-center text-sm text-ink-600">
+        {isSignup ? 'Zaten hesabın var mı?' : 'Henüz hesabın yok mu?'}{' '}
+        <Link href={isSignup ? '/login' : '/signup'} className="font-semibold text-accent-700">
+          {isSignup ? 'Mevcut hesapla giriş yap' : 'Yeni hesap oluştur'}
+        </Link>
+      </p>
+    </Page>
+  );
 }

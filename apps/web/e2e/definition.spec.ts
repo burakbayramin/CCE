@@ -9,7 +9,7 @@ test('Owner compiles an approved fixture once without activating a character', a
   await expect(page).toHaveURL(/\/admin$/);
   await page.goto(`/admin/reviews/${process.env.CCE_E2E_DEFINITION_SUBMISSION}`);
   await page.getByRole('button', { name: 'Onaylı tanımı derle' }).click();
-  await expect(page.getByText('TEST FİXTURE — gerçek aktivasyon izni değildir.', { exact: true })).toBeVisible();
+  await expect(page.getByText('TEST FİKTURE — gerçek aktivasyon izni değildir.', { exact: true })).toBeVisible();
   const hash = await page.getByText(/^SHA-256:/).innerText();
   expect(hash).toMatch(/^SHA-256: [0-9a-f]{64}$/);
   await expect(page.getByText('APPROVED', { exact: true }).first()).toBeVisible();

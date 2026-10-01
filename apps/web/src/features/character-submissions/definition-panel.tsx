@@ -5,11 +5,19 @@ import { useRouter } from 'next/navigation';
 import { compileDefinition } from '../../app/admin/reviews/actions';
 import type { StoredDefinition, Submission } from '../../lib/contributions';
 import { apiErrorMessage } from '../../lib/api-errors';
+import { Card, DefinitionRow, Notice } from '../../components/ui';
 
-export function DefinitionPanel({ item, definition }: { item: Submission; definition: StoredDefinition | null }) {
+export function DefinitionPanel({
+  item,
+  definition,
+}: {
+  item: Submission;
+  definition: StoredDefinition | null;
+}) {
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState('');
   const router = useRouter();
+
   function compile() {
     const revisionId = item.revision_id;
     if (!revisionId) return;
@@ -22,19 +30,80 @@ export function DefinitionPanel({ item, definition }: { item: Submission; defini
       } catch { setError('Derleme sonucu doğrulanamadı. Aynı işlemle yeniden dene.'); }
     });
   }
-  return <section className="mt-8 rounded border p-4">
-    <h2 className="text-xl font-semibold">Sürümlü karakter tanımı</h2>
-    <p className="mt-2">Bu işlem yalnız onaylı kaynağı derler. Karakter aktive edilmez; hafıza, hedef ve ilişkiler yalnız adaydır.</p>
-    {error && <p role="alert" className="mt-3 text-red-800">{error}</p>}
-    {!definition ? <button disabled={busy} onClick={compile} className="mt-4 rounded bg-slate-900 px-4 py-2 text-white">Onaylı tanımı derle</button> : <>
-      {definition.artifact.source.is_fixture && <p className="mt-4 font-semibold text-amber-900">TEST FİXTURE — gerçek aktivasyon izni değildir.</p>}
-      <p className="mt-4">Tanım sürümü: {definition.definition_version} · Şema: {definition.artifact.schema_version}</p>
-      <p>Derleyici: {definition.artifact.compiler_version} · Prompt: {definition.artifact.prompt.template_version}</p>
-      <p className="mt-2 break-all text-sm">Onay: {definition.artifact.source.approval_id}</p>
-      <p className="break-all text-sm">SHA-256: {definition.artifact_sha256}</p>
-      <p className="mt-3">VAD baseline: {JSON.stringify(definition.artifact.bootstrap.baseline)} — geçici teknik katsayılar; kalibrasyon tamamlanmadı.</p>
-      <p className="mt-2">Hafıza adayı: {definition.artifact.bootstrap.core_memories.length} · Hedef adayı: {definition.artifact.bootstrap.goals.length}</p>
-      <details className="mt-4"><summary>Kaynaklar ve türetilmiş adaylar (private)</summary><pre className="mt-3 whitespace-pre-wrap break-words text-xs">{JSON.stringify(definition.artifact, null, 2)}</pre></details>
-    </>}
-  </section>;
+
+  return (
+    <Card className="px-5 py-5 sm:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 className="font-display text-lg font-semibold text-ink-900">
+          Sürümlü karakter tanımı
+        </h2>
+        {definition && (
+          <span className="font-mono text-xs text-ink-500">v{definition.definition_version}</span>
+        )}
+      </div>
+      <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-600">
+        Bu işlem yalnız onaylı kaynağı derler. Karakter aktive edilmez; hafıza, hedef ve
+        ilişkiler yalnız adaydır.
+      </p>
+
+      {error && (
+        <div className="mt-4">
+          <Notice tone="danger" role="alert" title="Derleme tamamlanamadı">
+            {error}
+          </Notice>
+        </div>
+      )}
+
+      {!definition ? (
+        <button
+          disabled={busy}
+          onClick={compile}
+          className="cce-btn cce-btn-primary mt-4"
+        >
+          Onaylı tanımı derle
+        </button>
+      ) : (
+        <>
+          {definition.artifact.source.is_fixture && (
+            <div className="mt-4">
+              <Notice tone="warning" title="TEST FİKTURE — gerçek aktivasyon izni değildir.">
+                Bu tanım test ortamında üretildi. Aktivasyon kanıtı olarak kullanılamaz.
+              </Notice>
+            </div>
+          )}
+
+          <dl className="mt-5 divide-y divide-line border-t border-line">
+            <DefinitionRow term="Tanım sürümü">{definition.definition_version}</DefinitionRow>
+            <DefinitionRow term="Şema sürümü">{definition.artifact.schema_version}</DefinitionRow>
+            <DefinitionRow term="Derleyici">{definition.artifact.compiler_version}</DefinitionRow>
+            <DefinitionRow term="Prompt şablonu">
+              {definition.artifact.prompt.template_version}
+            </DefinitionRow>
+            <DefinitionRow term="Onay kimliği">{definition.artifact.source.approval_id}</DefinitionRow>
+          </dl>
+
+          {/* Kept as a single text node: the e2e suite reads this exact string. */}
+          <p className="mt-4 font-mono text-xs break-all text-ink-600">
+            SHA-256: {definition.artifact_sha256}
+          </p>
+
+          <div className="mt-4 space-y-3 rounded-lg border border-line bg-paper-sunk/50 px-4 py-3">
+            <p className="text-sm leading-relaxed text-ink-700">
+              VAD baseline: {JSON.stringify(definition.artifact.bootstrap.baseline)} — geçici
+              teknik katsayılar; kalibrasyon tamamlanmadı.
+            </p>
+            <p className="text-sm text-ink-700">
+              Hafıza adayı: {definition.artifact.bootstrap.core_memories.length} · Hedef adayı:{' '}
+              {definition.artifact.bootstrap.goals.length}
+            </p>
+          </div>
+
+          <details className="cce-disclosure mt-5 border-t border-line pt-4">
+            <summary>Kaynaklar ve türetilmiş adaylar (private)</summary>
+            <pre className="cce-code mt-3">{JSON.stringify(definition.artifact, null, 2)}</pre>
+          </details>
+        </>
+      )}
+    </Card>
+  );
 }

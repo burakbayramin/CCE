@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,10 @@ import { saveDraft, transitionDraft, uploadAvatar } from '../../app/contributor/
 import { PrivateAvatar } from '../../components/private-avatar';
 import type { Proposal, Submission } from '../../lib/contributions';
 import { apiErrorMessage } from '../../lib/api-errors';
+import { Card, Field, Notice, describedBy } from '../../components/ui';
+import { StatusPill, statusGuidance } from '../../components/status-pill';
 import { axes, confirmations, contract, lists, texts } from './proposal-fields';
+
 type TextKey = typeof texts[number][0];
 type ListKey = typeof lists[number][0];
 type AxisKey = typeof axes[number][0];
@@ -17,18 +20,26 @@ type FormFields = Record<TextKey | ListKey, string> & Record<AxisKey, number> & 
   age: number; adult_appearance_confirmed: boolean; original_character_confirmed: boolean;
 };
 // UX validation only; the generated Proposal contract and Pydantic remain authoritative.
-const shape = {
-  ...(Object.fromEntries(texts.map(([key, , max]) => [key, z.string().max(max)])) as Record<TextKey, z.ZodString>),
-  ...(Object.fromEntries(lists.map(([key]) => [key, z.string().refine(value => {
+function listField(key: ListKey) {
+  const { max_items: maxItems, max_length: maxLength } = contract.lists[key];
+  return z.string().refine(value => {
     const entries = value.split('\n').map(line => line.trim()).filter(Boolean);
-    return entries.length <= contract.lists[key].max_items &&
-      entries.every(line => line.length <= contract.lists[key].max_length);
-  }, 'En fazla 8 satır; her satır en fazla 200 karakter.')])) as Record<ListKey, z.ZodString>),
-  ...(Object.fromEntries(axes.map(([key]) => [key, z.number().int().min(contract.axes[key].min).max(contract.axes[key].max)])) as Record<AxisKey, z.ZodNumber>),
+    return entries.length <= maxItems && entries.every(line => line.length <= maxLength);
+  }, `En fazla ${maxItems} satır; her satır en fazla ${maxLength} karakter.`);
+}
+
+const shape = {
+  ...(Object.fromEntries(texts.map(([key, , max]) => [key, z.string().max(max)]))) as Record<TextKey, z.ZodString>,
+  ...(Object.fromEntries(lists.map(([key]) => [key, listField(key)]))) as Record<ListKey, z.ZodString>,
+  ...(Object.fromEntries(axes.map(([key]) => [key, z.number().int().min(contract.axes[key].min).max(contract.axes[key].max)]))) as Record<AxisKey, z.ZodNumber>,
   age: z.number().int().min(contract.age.min).max(contract.age.max),
   adult_appearance_confirmed: z.boolean(), original_character_confirmed: z.boolean(),
 };
 const formSchema = z.object(shape);
+
+function sectionTitle(children: string) {
+  return <p className="cce-legend">{children}</p>;
+}
 
 export function ProposalForm({ item, creationKey }: { item?: Submission; creationKey: string }) {
   const router = useRouter();
@@ -45,14 +56,18 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     ...Object.fromEntries(texts.map(([key]) => [key, definition?.[key] ?? ''])),
     ...Object.fromEntries(lists.map(([key]) => [key, definition?.[key]?.join('\n') ?? ''])),
     ...Object.fromEntries(axes.map(([key]) => [key, definition?.personality?.[key] ?? 50])),
-    age: definition?.age ?? 18,
+    age: definition?.age ?? contract.age.min,
     adult_appearance_confirmed: definition?.adult_appearance_confirmed ?? false,
     original_character_confirmed: definition?.original_character_confirmed ?? false,
   } as FormFields;
-  const { register, handleSubmit, formState: { errors, isDirty }, reset } = useForm<FormFields>({
+  const { register, handleSubmit, formState: { errors, isDirty }, reset, control } = useForm<FormFields>({
     defaultValues: defaults, resolver: zodResolver(formSchema),
   });
+  // useWatch rather than render-prop watch(): it is safe under React Compiler
+  // and still gives the live character counters and axis readouts.
+  const live = useWatch({ control }) as FormFields;
   const editable = !current || current.status === 'DRAFT';
+  const guidance = current ? statusGuidance(current.status) : null;
 
   async function save(values: FormFields) {
     setBusy(true); setError('');
@@ -106,32 +121,327 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     } catch { setError('Yükleme sonucu doğrulanamadı; aynı dosyayla yeniden dene.'); }
     finally { setBusy(false); }
   }
-  return <>
-    <p className="mt-4">Durum: <strong>{current?.status ?? 'Yeni taslak'}</strong> · Sürüm: {current?.version ?? '—'}</p>
-    <p className="mt-3 text-sm text-slate-600">Karakter aktivasyonu henüz açık değil. Gönderilmiş revizyon ve avatarı değiştirilemez; Owner değişiklik istediğinde yeni taslak açabilirsin. Ham system prompt ve runtime state kabul edilmez.</p>
-    <PrivateAvatar id={current?.avatar_id} />
-    {current && editable && <fieldset disabled={pending || isDirty} className="mt-5 space-y-3">
-      <label className="block">Avatar önerisi<input type="file" accept="image/png,image/jpeg,image/webp" className="mt-2 block" onChange={event => { setFile(event.target.files?.[0] ?? null); setUploadKey(crypto.randomUUID()); }} /></label>
-      <p className="text-sm">Önce metin değişikliklerini kaydet. PNG/JPEG/WebP, 32–2048 piksel, en fazla 512 KiB. Dosya doğrulanıp metadatasız PNG olarak private saklanır; içerik moderasyonu ayrı adımdır.</p>
-      <button type="button" disabled={!file} onClick={upload} className="rounded border px-4 py-2">Avatarı yükle</button>
-    </fieldset>}
-    {error && <p role="alert" className="mt-4 text-red-800">{error}</p>}
-    <form onSubmit={handleSubmit(save)} className="mt-8 space-y-5">
-      <fieldset disabled={!editable || pending} className="space-y-5 disabled:opacity-75">
-        {texts.map(([key, label, max]) => <label key={key} className="block">{label}<textarea {...register(key)} maxLength={max} rows={key === 'backstory' ? 5 : 2} className="mt-1 block w-full rounded border p-3" /></label>)}
-        <label className="block">Yaş<input {...register('age', { valueAsNumber: true })} type="number" min={contract.age.min} max={contract.age.max} className="ml-3 rounded border p-2" /></label>
-        <details><summary>Kişilik eksenleri ({contract.axes.openness.min}–{contract.axes.openness.max})</summary><div className="mt-4 grid gap-3 sm:grid-cols-2">{axes.map(([key, label]) => <label key={key}>{label}<input {...register(key, { valueAsNumber: true })} type="number" min={contract.axes[key].min} max={contract.axes[key].max} className="ml-2 w-20 rounded border p-2" /></label>)}</div></details>
-        <details><summary>Özellikler, geçmiş olayları ve öneriler</summary><p className="my-3 text-sm">Her alana en fazla {contract.lists.strengths.max_items} satır, satır başına en fazla {contract.lists.strengths.max_length} karakter.</p>{lists.map(([key, label]) => <label key={key} className="my-4 block">{label}<textarea {...register(key)} rows={3} className="mt-1 block w-full rounded border p-3" />{errors[key] && <span role="alert">{errors[key]?.message}</span>}</label>)}</details>
-        {confirmations.map(([key, label]) => <label key={key} className="block"><input type="checkbox" {...register(key)} /> {label}</label>)}
-        {Object.keys(errors).length > 0 && <p role="alert">Alanları ve belirtilen sınırları kontrol et.</p>}
-        <button type="submit" className="rounded bg-slate-900 px-5 py-3 text-white">Kaydet ve ön izle</button>
-      </fieldset>
-    </form>
-    {(preview || current) && <details className="mt-8" open={!editable}><summary>Kaydedilmiş karakter ön izlemesi</summary><h2 className="mt-3 text-xl">{(preview ?? current?.definition)?.name}</h2><p className="my-3 whitespace-pre-wrap">{(preview ?? current?.definition)?.introduction}</p><p className="whitespace-pre-wrap">{(preview ?? current?.definition)?.backstory}</p></details>}
-    {current?.status === 'DRAFT' && <button disabled={pending || isDirty} onClick={() => transition('submit')} className="mt-6 rounded bg-teal-800 px-5 py-3 text-white disabled:opacity-50">İncelemeye gönder</button>}
-    {current?.status === 'CHANGES_REQUESTED' && <button disabled={pending} onClick={() => transition('revise')} className="mt-6 mr-4 rounded bg-teal-800 px-5 py-3 text-white">Yeni revizyon taslağı aç</button>}
-    {current && ['SUBMITTED', 'UNDER_REVIEW', 'CHANGES_REQUESTED'].includes(current.status) && <button disabled={pending} onClick={() => transition('withdraw')} className="mt-6 rounded border px-5 py-3">Başvuruyu geri çek</button>}
-    {current?.status === 'APPROVED' && <p className="mt-6">Bu revizyon onaylandı; henüz canlı karakter oluşturulmadı.</p>}
-    {current?.status === 'WITHDRAWN' && <p className="mt-6">Bu başvuru yeniden açılamaz; yeni taslak oluşturabilirsin.</p>}
-  </>;
+
+  const hasErrors = Object.keys(errors).length > 0;
+  const previewed = preview ?? current?.definition ?? null;
+
+  return (
+    <div className="space-y-6">
+      {/* ---- header: state and the one action that moves it forward ---- */}
+      <Card className="px-5 py-5 sm:px-6">
+        <div className="flex flex-wrap items-start gap-5">
+          <PrivateAvatar id={current?.avatar_id} describedBy="character-name" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span id="character-name" className="font-display text-2xl font-semibold text-ink-900">
+                {previewed?.name || 'İsimsiz karakter taslağı'}
+              </span>
+              <StatusPill status={current?.status ?? 'DRAFT'} />
+            </div>
+            <p className="mt-1 font-mono text-xs text-ink-500">
+              Sürüm {current?.version ?? 1}
+            </p>
+            {guidance && <p className="mt-2.5 max-w-prose text-sm leading-relaxed text-ink-600">{guidance}</p>}
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4">
+            <Notice tone="danger" role="alert" title="İşlem tamamlanamadı">
+              {error}
+            </Notice>
+          </div>
+        )}
+
+        <div className="cce-no-print mt-5 flex flex-wrap gap-2.5 border-t border-line pt-4">
+          {current?.status === 'DRAFT' && (
+            <button
+              type="button"
+              disabled={pending || isDirty}
+              onClick={() => transition('submit')}
+              className="cce-btn cce-btn-primary"
+            >
+              İncelemeye gönder
+            </button>
+          )}
+          {current?.status === 'CHANGES_REQUESTED' && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => transition('revise')}
+              className="cce-btn cce-btn-primary"
+            >
+              Yeni revizyon taslağı aç
+            </button>
+          )}
+          {current &&
+            ['SUBMITTED', 'UNDER_REVIEW', 'CHANGES_REQUESTED'].includes(current.status) && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => transition('withdraw')}
+                className="cce-btn cce-btn-secondary"
+              >
+                Başvuruyu geri çek
+              </button>
+            )}
+          {current?.status === 'APPROVED' && (
+            <p className="text-sm text-success-700">
+              Bu revizyon onaylandı; henüz canlı karakter oluşturulmadı.
+            </p>
+          )}
+          {current?.status === 'WITHDRAWN' && (
+            <p className="text-sm text-ink-600">
+              Bu başvuru yeniden açılamaz; yeni taslak oluşturabilirsin.
+            </p>
+          )}
+        </div>
+      </Card>
+
+      {/* ---- avatar ---- */}
+      {current && editable && (
+        <Card className="px-5 py-5">
+          <h2 className="font-display text-lg font-semibold text-ink-900">Avatar önerisi</h2>
+          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-600">
+            Önce metin değişikliklerini kaydet, sonra avatarı yükle. PNG/JPEG/WebP,
+            32–2048 piksel, en fazla 512 KiB. Dosya doğrulanıp metadatasız PNG olarak
+            private saklanır; içerik moderasyonu ayrı bir adımdır.
+          </p>
+          <fieldset disabled={pending || isDirty} className="mt-4 flex flex-wrap items-end gap-3">
+            <Field id="avatar" label="Avatar önerisi" className="min-w-64 flex-1">
+              <input
+                id="avatar"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={event => {
+                  setFile(event.target.files?.[0] ?? null);
+                  setUploadKey(crypto.randomUUID());
+                }}
+                className="cce-input cursor-pointer py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-paper-sunk file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-700"
+              />
+            </Field>
+            <button type="button" disabled={!file} onClick={upload} className="cce-btn cce-btn-secondary">
+              Avatarı yükle
+            </button>
+          </fieldset>
+        </Card>
+      )}
+
+      {/* ---- the form ---- */}
+      <form onSubmit={handleSubmit(save)} noValidate>
+        <fieldset disabled={!editable || pending} className="space-y-6 disabled:opacity-70">
+          <Card className="px-5 py-6 sm:px-6">
+            <div className="space-y-5">
+              {sectionTitle('Kimlik')}
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field id="name" label="İsim" counter={`${live.name?.length ?? 0}/${contract.texts.name}`}>
+                  <input id="name" {...register('name')} maxLength={contract.texts.name} className="cce-input" placeholder="Deniz" />
+                </Field>
+                <Field id="pronouns" label="Zamirler" counter={`${live.pronouns?.length ?? 0}/${contract.texts.pronouns}`}>
+                  <input id="pronouns" {...register('pronouns')} maxLength={contract.texts.pronouns} className="cce-input" placeholder="o / she" />
+                </Field>
+              </div>
+
+              <Field
+                id="age"
+                label="Yaş"
+                hint={`${contract.age.min}–${contract.age.max} arası`}
+                error={errors.age?.message}
+              >
+                <input
+                  id="age"
+                  {...register('age', { valueAsNumber: true })}
+                  type="number"
+                  min={contract.age.min}
+                  max={contract.age.max}
+                  aria-describedby={describedBy('age', true, Boolean(errors.age))}
+                  aria-invalid={Boolean(errors.age)}
+                  className="cce-input max-w-32"
+                />
+              </Field>
+
+              <Field
+                id="introduction"
+                label="Kısa tanıtım"
+                hint="Bir cümlede bu karakter kim? Dünyadaki rolü ne?"
+                counter={`${live.introduction?.length ?? 0}/${contract.texts.introduction}`}
+              >
+                <textarea
+                  id="introduction"
+                  {...register('introduction')}
+                  maxLength={contract.texts.introduction}
+                  rows={3}
+                  aria-describedby={describedBy('introduction', true, false)}
+                  className="cce-input"
+                  placeholder="Sahil kentinde büyümüş, arşivlerin sessiz bekçisi."
+                />
+              </Field>
+
+              <Field id="occupation" label="Meslek / rol" counter={`${live.occupation?.length ?? 0}/${contract.texts.occupation}`}>
+                <input id="occupation" {...register('occupation')} maxLength={contract.texts.occupation} className="cce-input" placeholder="Küratör" />
+              </Field>
+            </div>
+          </Card>
+
+          <Card className="px-5 py-6 sm:px-6">
+            <div className="space-y-5">
+              {sectionTitle('Ses ve kültür')}
+              <Field
+                id="speech_style"
+                label="Konuşma tarzı"
+                hint="Nasıl konuşur? Cümle uzunluğu, hitap, sessizlik kullanımı."
+                counter={`${live.speech_style?.length ?? 0}/${contract.texts.speech_style}`}
+              >
+                <textarea id="speech_style" {...register('speech_style')} maxLength={contract.texts.speech_style} rows={3} aria-describedby={describedBy('speech_style', true, false)} className="cce-input" />
+              </Field>
+              <Field id="humor" label="Mizah" counter={`${live.humor?.length ?? 0}/${contract.texts.humor}`}>
+                <textarea id="humor" {...register('humor')} maxLength={contract.texts.humor} rows={2} className="cce-input" />
+              </Field>
+              <Field
+                id="cultural_background"
+                label="Kültürel arka plan"
+                counter={`${live.cultural_background?.length ?? 0}/${contract.texts.cultural_background}`}
+              >
+                <textarea id="cultural_background" {...register('cultural_background')} maxLength={contract.texts.cultural_background} rows={3} className="cce-input" />
+              </Field>
+            </div>
+          </Card>
+
+          <Card className="px-5 py-6 sm:px-6">
+            <div className="space-y-5">
+              {sectionTitle('Anlatı')}
+              <Field
+                id="backstory"
+                label="Geçmiş hikâyesi"
+                hint="Bu bir arka plan adayıdır; yaşanmış deneyim veya sistem talimatı olarak yorumlanmaz."
+                counter={`${live.backstory?.length ?? 0}/${contract.texts.backstory}`}
+              >
+                <textarea
+                  id="backstory"
+                  {...register('backstory')}
+                  maxLength={contract.texts.backstory}
+                  rows={7}
+                  aria-describedby={describedBy('backstory', true, false)}
+                  className="cce-input"
+                />
+              </Field>
+            </div>
+          </Card>
+
+          <Card className="px-5 py-6 sm:px-6">
+            <fieldset className="space-y-4">
+              <legend className="cce-legend">Kişilik eksenleri</legend>
+              <p className="-mt-2 max-w-prose text-xs leading-relaxed text-ink-500">
+                Her eksen {contract.axes.openness.min}–{contract.axes.openness.max} arasında.
+                Bunlar teknik başlangıç katsayılarıdır; psikolojik ölçüm değildir.
+              </p>
+              {axes.map(([key, label]) => {
+                const value = live[key] ?? 50;
+                return (
+                  <div key={key} className="grid items-center gap-2 sm:grid-cols-[11rem_1fr_3rem] sm:gap-4">
+                    <label htmlFor={key} className="text-sm text-ink-700">{label}</label>
+                    <input
+                      id={key}
+                      {...register(key, { valueAsNumber: true })}
+                      type="range"
+                      min={contract.axes[key].min}
+                      max={contract.axes[key].max}
+                      className="cce-range"
+                    />
+                    <output htmlFor={key} className="text-right font-mono text-sm text-ink-700">{value}</output>
+                  </div>
+                );
+              })}
+            </fieldset>
+          </Card>
+
+          <Card className="px-5 py-6 sm:px-6">
+            <div className="space-y-5">
+              {sectionTitle('Karakterin iç dünyası')}
+              <p className="-mt-2 max-w-prose text-xs leading-relaxed text-ink-500">
+                Her alana en fazla {contract.lists.strengths.max_items} satır, satır başına en
+                fazla {contract.lists.strengths.max_length} karakter. Her satır ayrı bir öğedir.
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                {lists.map(([key, label]) => {
+                  const lines = live[key]?.split('\n').filter(line => line.trim()).length ?? 0;
+                  return (
+                    <Field
+                      key={key}
+                      id={key}
+                      label={label}
+                      error={errors[key]?.message}
+                      counter={`${lines}/${contract.lists[key].max_items}`}
+                    >
+                      <textarea
+                        id={key}
+                        {...register(key)}
+                        rows={3}
+                        aria-invalid={Boolean(errors[key])}
+                        aria-describedby={describedBy(key, false, Boolean(errors[key]))}
+                        className={`cce-input ${errors[key] ? 'cce-input-invalid' : ''}`}
+                      />
+                    </Field>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+
+          <Card className="px-5 py-6 sm:px-6">
+            <div className="space-y-3">
+              {sectionTitle('Onaylar')}
+              <p className="-mt-2 max-w-prose text-xs leading-relaxed text-ink-500">
+                Bu iki beyan başvuru içeriğinin sınırlarını tanımlar. Katkı metni hiçbir
+                zaman sistem talimatı olarak yorumlanmaz.
+              </p>
+              {confirmations.map(([key, label]) => (
+                <label key={key} htmlFor={key} className="cce-checkbox">
+                  <input id={key} type="checkbox" {...register(key)} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </Card>
+
+          {hasErrors && (
+            <Notice tone="danger" role="alert" title="Bazı alanlar düzeltilmeli">
+              Alanları ve belirtilen sınırları kontrol et. Hatalar ilgili alanın altında
+              gösteriliyor.
+            </Notice>
+          )}
+
+          <div className="cce-no-print flex flex-wrap items-center gap-3">
+            <button type="submit" className="cce-btn cce-btn-primary">
+              Kaydet ve ön izle
+            </button>
+            {isDirty && (
+              <p className="text-xs text-ink-500">Kaydedilmemiş değişikliklerin var.</p>
+            )}
+          </div>
+        </fieldset>
+      </form>
+
+      {/* ---- preview ---- */}
+      {previewed && (
+        <Card className="px-5 py-5 sm:px-6">
+          <details className="cce-disclosure" open={!editable}>
+            <summary>Kaydedilmiş karakter ön izlemesi</summary>
+            <div className="mt-4 space-y-4">
+              <h2 className="font-display text-xl font-semibold text-ink-900">{previewed.name}</h2>
+              {previewed.pronouns && (
+                <p className="font-mono text-xs text-ink-500">zamirler: {previewed.pronouns}</p>
+              )}
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-700">
+                {previewed.introduction}
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-700">
+                {previewed.backstory}
+              </p>
+            </div>
+          </details>
+        </Card>
+      )}
+    </div>
+  );
 }
