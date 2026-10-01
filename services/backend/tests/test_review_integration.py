@@ -108,7 +108,7 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
                 (str(actor.user_id), str(actor.session_id)),
             )
             # Supabase postgres can grant roles but is not a superuser and
-            # cannot assume cce_engine without membership. This test-only
+            # cannot assume cce_engine without SET-enabled membership. This test-only
             # grant rolls back with the rejected command, like pgTAP canaries.
             admin.execute("grant cce_engine to postgres")
             admin.execute("set local role cce_engine")
@@ -120,7 +120,7 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
             )
         with psycopg.connect(ADMIN_DSN) as observer:
             assert observer.execute(
-                "select pg_has_role(current_user,'cce_engine','MEMBER')"
+                "select pg_has_role(current_user,'cce_engine','SET')"
             ).fetchone() == (False,)
         assert (
             api.get(f"/reviews/{item['id']}", headers=headers(owner)).json()["submission"]["status"]
@@ -167,7 +167,7 @@ def test_draft_save_does_not_evaluate_owner_only_fixture_policy(review_accounts)
                 (item["id"],),
             ).fetchone() == (2,)
             db.rollback()
-            assert db.execute("select pg_has_role(current_user,'cce_api','MEMBER')").fetchone() == (
+            assert db.execute("select pg_has_role(current_user,'cce_api','SET')").fetchone() == (
                 False,
             )
         assert (
