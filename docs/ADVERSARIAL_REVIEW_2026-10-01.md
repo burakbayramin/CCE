@@ -57,6 +57,12 @@ komutu tek transaction'da çalışır; fixture korumasının beklenen hatasıyla
 ikisi de rollback olur. İkinci bağlantının hâlâ açık politika görmesi de
 testte kontrol edilir. **Test düzeltildi; canlı DB sonucu bekliyor.**
 
+B-6 için form limitlerine tam Pydantic JSON Schema snapshot'ı ve whitespace
+konfigürasyonu eklendi. Zorunluluk, alt sınır, ek alan politikası ve filtrelenmiş
+UI tablolarına girmeyen yeni alan değişiklikleri artık contract kontrolünde
+görünür. Sekiz DB gerektirmeyen test snapshot uyumunu ve negatif drift
+senaryolarını doğrular. Mevcut UI alan düzeni değiştirilmedi.
+
 ---
 
 ## Özet
