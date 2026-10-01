@@ -8,6 +8,8 @@ from pydantic import SecretStr
 
 from cce.api_entrypoint import create_app
 from cce.core.config import Settings
+from cce.infrastructure import database as database_module
+from cce.infrastructure.database import create_database, database_ready
 
 pytestmark = pytest.mark.integration
 
@@ -25,13 +27,13 @@ def test_local_api_role_and_readiness() -> None:
     ) as connection:
         assert connection.execute("select current_user").fetchone() == ("cce_api",)
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            2,
+            3,
         )
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             connection.execute("set role cce_migrator")
         connection.rollback()
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            connection.execute("update ops_private.schema_version set version = 3")
+            connection.execute("update ops_private.schema_version set version = 4")
         connection.rollback()
     config = Settings(
         environment="test",
@@ -39,6 +41,22 @@ def test_local_api_role_and_readiness() -> None:
     )
     with TestClient(create_app(config)) as client:
         assert client.get("/health/ready").json() == {"status": "ok"}
+
+
+def test_database_ready_rejects_schema_version_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    if os.environ.get("CCE_ENVIRONMENT") != "test":
+        pytest.fail("Integration tests require isolated local fixtures")
+    config = Settings(environment="test", database_url=SecretStr(API_DSN))
+    engine = create_database(config)
+    try:
+        assert database_ready(engine)
+        monkeypatch.setattr(database_module, "REQUIRED_SCHEMA_VERSION", 4)
+        assert not database_ready(engine)
+        with pytest.raises(RuntimeError, match="API database identity or schema"):
+            with TestClient(create_app(config)):
+                pass
+    finally:
+        engine.dispose()
 
 
 def test_worker_has_separate_restricted_identity() -> None:
@@ -65,11 +83,11 @@ def test_migration_owner_cannot_update_marker_under_forced_rls() -> None:
         assert connection.execute("select current_user").fetchone() == ("cce_migrator",)
         assert (
             connection.execute(
-                "update ops_private.schema_version set version=2 where singleton returning version"
+                "update ops_private.schema_version set version=3 where singleton returning version"
             ).fetchone()
             is None
         )
         connection.execute("reset role")
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            2,
+            3,
         )

@@ -1,7 +1,11 @@
 begin;
-select plan(10);
+select plan(11);
 select ok((select not public and file_size_limit=524288 and allowed_mime_types=array['image/png'] from storage.buckets where id='cce-avatars'), 'Private bounded PNG bucket');
 select ok((select relforcerowsecurity from pg_class where oid='public.avatar_assets'::regclass), 'Avatar assets FORCE RLS');
+select ok(exists(select 1 from pg_trigger where tgrelid='public.avatar_assets'::regclass
+    and tgname='guard_avatar_status' and not tgisinternal
+    and (tgtype & 4)=4 and (tgtype & 16)=16 and tgenabled='O'),
+    'Avatar status guard covers INSERT and UPDATE');
 select ok(not has_table_privilege('authenticated','public.avatar_assets','INSERT'), 'No Data API asset reservation');
 select ok(not has_table_privilege('anon','public.avatar_assets','SELECT'), 'No anonymous asset metadata');
 select ok(not has_table_privilege('cce_api','public.avatar_assets','DELETE'), 'No runtime asset deletion');

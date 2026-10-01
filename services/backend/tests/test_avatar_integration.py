@@ -6,14 +6,51 @@ import pytest
 from fastapi.testclient import TestClient
 from local_environment import ADMIN_DSN, AUTH_URL
 from pydantic import SecretStr
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from test_avatars import png
 from test_contributions_integration import proposal
 from test_identity_integration import settings
 
 from cce.api_entrypoint import create_app
+from cce.infrastructure.database import create_database
 from cce.modules.contributions.avatars import AvatarStorage
+from cce.modules.identity.authentication import TokenVerifier
+from cce.modules.identity.repository import actor_transaction
 
 pytestmark = pytest.mark.integration
+
+
+def test_ready_avatar_insert_is_rejected_for_api_role(accounts) -> None:
+    users, _ = accounts
+    config = settings()
+    with TestClient(create_app(config)) as api:
+        item = api.post(
+            "/contributions",
+            headers={"Authorization": f"Bearer {users[0]['token']}"},
+            json={"creation_key": str(uuid4()), "definition": proposal()},
+        ).json()
+
+    engine = create_database(config)
+    actor = TokenVerifier(config).verify(users[0]["token"])
+    try:
+        with pytest.raises(DBAPIError) as rejected, actor_transaction(engine, actor) as db:
+            db.execute(
+                text(
+                    "insert into public.avatar_assets "
+                    "(submission_id,user_id,upload_key,sha256,byte_size,width,height,status) "
+                    "values (:submission,:actor,:key,:hash,100,32,32,'READY')"
+                ),
+                {
+                    "submission": UUID(item["id"]),
+                    "actor": actor.user_id,
+                    "key": uuid4(),
+                    "hash": "0" * 64,
+                },
+            )
+        assert rejected.value.orig.sqlstate == "23514"
+    finally:
+        engine.dispose()
 
 
 def test_private_immutable_avatar_and_retry(accounts) -> None:
