@@ -351,7 +351,7 @@ doğrulama başarısızsa scanner yüklenmez ve kuyruktan iş alınmaz.
 ```powershell
 uv run --project services/backend ruff check services/backend scripts
 uv run --project services/backend ruff format --check services/backend scripts
-uv run --project services/backend mypy services/backend/src
+uv run --project services/backend mypy --config-file services/backend/pyproject.toml services/backend/src
 uv run --project services/backend pytest services/backend/tests -m 'not integration'
 pnpm contract:generate
 pnpm lint

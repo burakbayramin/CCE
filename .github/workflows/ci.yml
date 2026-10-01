@@ -33,7 +33,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: uv run --project services/backend ruff check services/backend scripts
       - run: uv run --project services/backend ruff format --check services/backend scripts
-      - run: uv run --project services/backend mypy services/backend/src
+      - run: uv run --project services/backend mypy --config-file services/backend/pyproject.toml services/backend/src
       - run: uv run --project services/backend pytest services/backend/tests -m 'not integration'
       - run: uv run --project services/backend python scripts/check_proposal_contract.py
       - run: pnpm contract:generate
