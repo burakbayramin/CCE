@@ -7,7 +7,7 @@ import httpx
 from pydantic import SecretStr
 from sqlalchemy import Engine, text
 
-from cce.modules.contributions.avatars import MAX_AVATAR_BYTES
+from cce.modules.contributions.images import MAX_AVATAR_BYTES
 from cce.modules.contributions.moderation_worker import AvatarUnavailable, ScanWork
 
 

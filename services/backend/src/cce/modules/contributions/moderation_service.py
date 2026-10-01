@@ -116,7 +116,7 @@ def create_worker_engine(settings: WorkerSettings) -> Engine:
 
 
 def main() -> None:
-    settings = WorkerSettings()  # type: ignore[call-arg]
+    settings = WorkerSettings()
     stop = Event()
 
     def request_stop(signum: int, frame: FrameType | None) -> None:

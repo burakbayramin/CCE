@@ -24,7 +24,7 @@ def create_app(
     settings: Settings | None = None, *, moderation: ModerationProvider | None = None
 ) -> FastAPI:
     # BaseSettings loads the required database_url from the environment at runtime.
-    config = settings if settings is not None else Settings()  # type: ignore[call-arg]
+    config = settings if settings is not None else Settings()
     configure_logging()
     engine = create_database(config)
     owner_engine = (
