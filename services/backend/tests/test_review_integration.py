@@ -1,5 +1,4 @@
 import os
-import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -9,6 +8,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from local_environment import ADMIN_DSN
+from local_tools import pnpm_command
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from test_contributions_integration import proposal
@@ -399,10 +399,15 @@ def test_review_browser_flow(review_accounts) -> None:
         "CCE_E2E_CONTRIBUTOR_PASSWORD": contributor["password"],
         "CCE_E2E_DEFINITION_SUBMISSION": item["id"],
     }
-    pnpm = shutil.which("pnpm.cmd" if os.name == "nt" else "pnpm")
-    assert pnpm
     subprocess.run(
-        [pnpm, "--filter", "@cce/web", "test:e2e", "review.spec.ts", "definition.spec.ts"],
+        [
+            *pnpm_command(),
+            "--filter",
+            "@cce/web",
+            "test:e2e",
+            "review.spec.ts",
+            "definition.spec.ts",
+        ],
         cwd=Path(__file__).resolve().parents[3],
         env=env,
         check=True,

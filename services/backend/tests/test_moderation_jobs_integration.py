@@ -1,7 +1,6 @@
 """Real DB protocol tests, not evidence of a real model's content-safety quality."""
 
 import os
-import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -11,6 +10,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from local_environment import ADMIN_DSN, DB_PORT
+from local_tools import pnpm_command
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from test_identity_integration import settings
@@ -88,10 +88,8 @@ def test_moderation_retry_browser_flow(review_accounts):
         assert finish(work, "ERROR", "MODEL_UNAVAILABLE") is True
         item = detail(api, report["submission"], owner)
         assert item["moderation_job"]["state"] == "ERROR"
-    pnpm = shutil.which("pnpm.cmd" if os.name == "nt" else "pnpm")
-    assert pnpm
     subprocess.run(
-        [pnpm, "--filter", "@cce/web", "test:e2e", "moderation-retry.spec.ts"],
+        [*pnpm_command(), "--filter", "@cce/web", "test:e2e", "moderation-retry.spec.ts"],
         cwd=Path(__file__).resolve().parents[3],
         env={
             **os.environ,
