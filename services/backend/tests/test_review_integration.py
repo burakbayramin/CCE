@@ -107,6 +107,10 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
                 "select set_config('cce.actor_id',%s,true),set_config('cce.session_id',%s,true)",
                 (str(actor.user_id), str(actor.session_id)),
             )
+            # Supabase postgres can grant roles but is not a superuser and
+            # cannot assume cce_engine without membership. This test-only
+            # grant rolls back with the rejected command, like pgTAP canaries.
+            admin.execute("grant cce_engine to postgres")
             admin.execute("set local role cce_engine")
             assert admin.execute("select current_user").fetchone() == ("cce_engine",)
             admin.execute(
@@ -114,6 +118,10 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
                 "version=version+1 where id=%s",
                 (item["id"],),
             )
+        with psycopg.connect(ADMIN_DSN) as observer:
+            assert observer.execute(
+                "select pg_has_role(current_user,'cce_engine','MEMBER')"
+            ).fetchone() == (False,)
         assert (
             api.get(f"/reviews/{item['id']}", headers=headers(owner)).json()["submission"]["status"]
             == "UNDER_REVIEW"
@@ -146,6 +154,7 @@ def test_draft_save_does_not_evaluate_owner_only_fixture_policy(review_accounts)
                 "select set_config('cce.actor_id',%s,true),set_config('cce.session_id',%s,true)",
                 (str(actor.user_id), str(actor.session_id)),
             )
+            db.execute("grant cce_api to postgres")
             db.execute("set local role cce_api")
             assert db.execute("select current_user").fetchone() == ("cce_api",)
             assert db.execute(
@@ -158,6 +167,9 @@ def test_draft_save_does_not_evaluate_owner_only_fixture_policy(review_accounts)
                 (item["id"],),
             ).fetchone() == (2,)
             db.rollback()
+            assert db.execute("select pg_has_role(current_user,'cce_api','MEMBER')").fetchone() == (
+                False,
+            )
         assert (
             api.get(f"/contributions/{item['id']}", headers=headers(contributor)).json()["version"]
             == 1
