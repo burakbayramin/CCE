@@ -103,18 +103,17 @@ def avatar_router(
         try:
             with actor_transaction(api_engine, actor) as connection:
                 identity = identity_context(connection, actor)
-                if identity["role"] == "world_owner":
-                    if owner_engine is None:
-                        raise ContributionError(503, "Owner command database is not configured")
-                else:
+                if identity["role"] != "world_owner":
                     asset = read_asset(connection, asset_id)
+                    if asset.status != "READY":
+                        raise ContributionError(404, "Avatar bulunamadı")
             if identity["role"] == "world_owner":
                 if owner_engine is None:
                     raise ContributionError(503, "Owner command database is not configured")
                 with actor_transaction(owner_engine, actor) as connection:
                     asset = read_asset(connection, asset_id)
-            if asset.status != "READY":
-                raise ContributionError(404, "Avatar bulunamadı")
+                    if asset.status != "READY":
+                        raise ContributionError(404, "Avatar bulunamadı")
             content = AvatarStorage(config, request.headers.get("authorization", "")).read(asset)
             return Response(
                 content,

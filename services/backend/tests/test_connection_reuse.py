@@ -101,8 +101,13 @@ def test_review_request_checks_owner_in_command_transaction(
 
 
 @pytest.mark.parametrize("role,expected_checkouts", [("contributor", 1), ("world_owner", 2)])
+@pytest.mark.parametrize("status,expected_http", [("READY", 200), ("PENDING", 404)])
 def test_avatar_read_only_switches_connection_for_owner(
-    monkeypatch: pytest.MonkeyPatch, role: str, expected_checkouts: int
+    monkeypatch: pytest.MonkeyPatch,
+    role: str,
+    expected_checkouts: int,
+    status: str,
+    expected_http: int,
 ) -> None:
     value = actor()
     api_engine = cast(Engine, object())
@@ -122,7 +127,7 @@ def test_avatar_read_only_switches_connection_for_owner(
 
     monkeypatch.setattr(avatar_routes, "actor_transaction", transaction)
     monkeypatch.setattr(avatar_routes, "identity_context", validate)
-    monkeypatch.setattr(avatar_routes, "read_asset", lambda *_: SimpleNamespace(status="READY"))
+    monkeypatch.setattr(avatar_routes, "read_asset", lambda *_: SimpleNamespace(status=status))
     monkeypatch.setattr(
         avatar_routes, "AvatarStorage", lambda *_: SimpleNamespace(read=lambda *_: b"image")
     )
@@ -135,7 +140,9 @@ def test_avatar_read_only_switches_connection_for_owner(
 
     with TestClient(app) as client:
         response = client.get(f"/avatars/{uuid4()}", headers={"Authorization": "Bearer test"})
-    assert response.status_code == 200 and response.content == b"image"
+    assert response.status_code == expected_http
+    if status == "READY":
+        assert response.content == b"image"
     assert len(opened) == expected_checkouts
     assert opened[0] is api_engine
     if role == "world_owner":
