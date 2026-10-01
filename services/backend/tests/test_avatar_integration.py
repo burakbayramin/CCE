@@ -50,6 +50,12 @@ def test_private_immutable_avatar_and_retry(accounts) -> None:
             object_name = db.execute(
                 "select object_name from public.avatar_assets where id=%s", (UUID(asset),)
             ).fetchone()[0]
+        with pytest.raises(psycopg.errors.CheckViolation):
+            with psycopg.connect(ADMIN_DSN) as db:
+                db.execute(
+                    "update public.avatar_assets set status='PENDING' where id=%s",
+                    (UUID(asset),),
+                )
         storage = f"/storage/v1/object/cce-avatars/{object_name}"
         assert auth.post(
             storage, headers={**own, "Content-Type": "image/png", "x-upsert": "true"}, content=png()
