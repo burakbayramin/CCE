@@ -6,6 +6,9 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
   const contributorContext = await browser.newContext();
   const owner = await ownerContext.newPage();
   const contributor = await contributorContext.newPage();
+  // Current status also appears in feedback history. Scope assertions to the
+  // submission identity card, not an arbitrary matching history badge.
+  const currentSubmission = owner.locator('section').filter({ has: owner.locator('#review-name') });
   owner.setDefaultTimeout(10000);
   contributor.setDefaultTimeout(10000);
   const base = process.env.CCE_E2E_BASE_URL || 'http://127.0.0.1:3100';
@@ -52,7 +55,7 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await expect(owner.getByRole('button', { name: 'Revizyonu onayla' })).toBeDisabled();
     await owner.getByLabel('Karar gerekçesi').fill('Geçmişteki arşiv deneyimini açıkla.');
     await owner.getByRole('button', { name: 'Değişiklik iste' }).click();
-    await expect(owner.locator('strong').filter({ hasText: /^CHANGES_REQUESTED$/ })).toBeVisible();
+    await expect(currentSubmission.locator('[data-status="CHANGES_REQUESTED"]')).toBeVisible();
     await contributor.reload();
     await expect(contributor.getByText('Geçmişteki arşiv deneyimini açıkla.', { exact: true })).toBeVisible();
     await contributor.getByRole('button', { name: 'Yeni revizyon taslağı aç' }).click();
@@ -69,7 +72,7 @@ test('Owner requests changes, contributor revises, Owner rejects; moderation fai
     await owner.getByRole('button', { name: 'İncelemeyi başlat' }).click();
     await owner.getByLabel('Karar gerekçesi').fill('Bu başvuruyu test kapsamında reddediyorum.');
     await owner.getByRole('button', { name: 'Reddet', exact: true }).click();
-    await expect(owner.locator('strong').filter({ hasText: /^REJECTED$/ })).toBeVisible();
+    await expect(currentSubmission.locator('[data-status="REJECTED"]')).toBeVisible();
     await contributor.reload();
     await expect(contributor.getByText('Bu başvuruyu test kapsamında reddediyorum.', { exact: true })).toBeVisible();
     await expect(contributor.getByLabel('İsim', { exact: true })).toBeDisabled();
