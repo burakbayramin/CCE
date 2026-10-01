@@ -70,6 +70,22 @@ DB gerektirmeyen testlerde doğrulandı. Ek checkout açılmaz; sınırlı decod
 süresince bağlantı tutulur ama taslak satır kilidi ancak decode sonrasında
 alınır. Storage I/O transaction dışında kalır. **Kod ve birim testleri tamam.**
 
+B-9 için retry kaydı `enqueue_moderation` içine taşındı: önce submission,
+sonra job kilitlenir; önceki durum/deneme numarası bu job satırından, actor
+DB kimlik context'inden türetilir. İlk normal enqueue retry sayılmaz; mevcut
+PENDING/RUNNING/ERROR ve gerçekten mevcut legacy ERROR yolları audit edilir.
+Kayıt ve durum değişikliği aynı transaction'dadır; API artık audit INSERT
+yapmaz. `cce_engine` doğrudan INSERT yetkisini kaybetti, Owner kontrolüne
+tabi SELECT politikası ve actor FK indeksi eklendi. Eski uygulama snapshot'ı
+PENDING iken worker'ın claim edip gerçek durumu RUNNING yaptığı yarış testi,
+ham INSERT reddi ve legacy kayıt kontrolü eklendi. Bu sınır şema `4 → 5`
+gerektirir. **Kodda giderildi; DB/pgTAP ve yarış testinin canlı sonucu bekliyor.**
+
+Yerel son kontrol: 104 backend birim testi ve 35 web testi geçti; backend
+ruff/format, açık backend config'iyle strict mypy, web lint/typecheck ve
+proposal contract kontrolü geçti. Kökten çalışan CI/README mypy komutu da
+backend config'ini açıkça seçer. Bu sonuçlar DB/Auth entegrasyon kanıtı değildir.
+
 ---
 
 ## Özet
