@@ -1,16 +1,54 @@
 # CCE Karşıdan Güvenlik İncelemesi — 2026-10-01
 
-**Kapsam:** `f687907`'den sonraki tüm değişiklikler — 4 yeni migration
+**İlk incelemenin kapsamı:** `f687907`'den sonraki tüm değişiklikler — 4 yeni migration
 (`20260930110443`, `20260930110756`, `20260930111403`, `20260930130956`) ve commit'li
 uygulama katmanı. İki paralel inceleme (veritabanı / uygulama) + her bulgunun kaynakta
 doğrulanması.
 
-**Yöntem:** Salt okunur inceleme. Hiçbir bulgu için düzeltme yapılmadı; bu dosya
+**İlk incelemenin yöntemi:** Salt okunur inceleme. Hiçbir bulgu için düzeltme yapılmadı; bu dosya
 yalnızca kayıttır. İnceleme sırasında **hiçbir yeni migration çalıştırılmadı** — bu
 makinede Docker yok, dolayısıyla `supabase db reset`, pgTAP ve integration testleri
 koşmadı. Aşağıdaki hiçbir SQL iddiası çalıştırılarak doğrulanmadı.
 
 **İlk durum:** Raporlayıcı önerisi. İlk incelemede hiçbir düzeltme yapılmadı.
+
+## Güncel sonuç — yerel doğrulama (2026-10-01)
+
+WSL `Ubuntu-24.04` içindeki Docker bulundu; sabitlenmiş Supabase CLI `2.117.0`
+ile yalnız `cce-integration` test yığını kullanıldı. Toplam 16 migration hem
+mevcut test şemasına uygulandı hem boş test DB'sinde reset ile tekrarlandı.
+Test şeması v5'tir; mevcut `cce-local` v1 ve Owner verileri değiştirilmedi.
+
+| Kontrol | Gerçek yerel sonuç |
+| :-- | :-- |
+| SQL / pgTAP | 7 dosyada 89 kontrol geçti; `db lint --level error --fail-on error` temiz |
+| DB / Auth / private Storage | 47 integration testi geçti; iki browser wrapper bu koşuda atlandı ve aşağıda ayrıca çalıştırıldı |
+| Gerçek tarayıcı | İki pytest wrapper geçti; Chrome üzerinde üç Playwright senaryosu: fixture definition, avatar/inceleme/revizyon/ret, moderasyon hata/retry |
+| Backend birim testleri | 109 geçti; ruff, format ve açık backend config'iyle mypy temiz |
+| Web / sözleşme | 38 test geçti; lint, typecheck ve proposal contract kontrolü temiz |
+| Çalışan API / web | İzole API readiness ve web login `200`; yetkisiz private medya `401` |
+
+B-1–B-9 aşağıdaki uygulama ve test kapsamlarıyla kapalıdır: sahte READY INSERT
+reddi, audit eylem allowlist'i, gerçek readiness pozitif/negatif yolları,
+Owner avatar dalının sadeleştirilmesi, decode öncesi güncel kimlik kontrolü,
+tam schema contract'ı, bozuk işin quarantine edilip sağlam kuyruğun ilerlemesi,
+fixture politikasının transaction içinde geri alınması ve kilit altındaki
+atomik retry audit'i. Katkıcı DRAFT UPDATE'inin fixture guard ile uyumu da gerçek
+DB'de doğrulandı. Medya transport/stream hata sınırları web testleriyle kapalıdır.
+
+İki testin geçici rol grant'i aynı rollback transaction'ına alındı. PostgreSQL'de
+administrative membership, `SET ROLE` yetkisi değildir; rollback kontrolü bu
+yüzden `pg_has_role(..., 'SET')` kullanır. Tarayıcı başlatıcısı Windows `pnpm.exe`
+ve `pnpm.cmd` yollarını destekler, Node sürümünü `.node-version` üzerinden sabitler.
+UI değişmeden, durum seçicileri yalnız güncel başvuru kartına daraltıldı.
+
+Bu sonuçlar yeni bir GitHub CI koşusu, production deploy veya gerçek model
+kalitesi kanıtı değildir. Gerçek metin/görsel scanner, model kabulü, model timeout
+sınırı ve worker servis kurulumu M3.2'de açık kalır. Aşağıdaki “DB sonucu bekliyor”
+ifadeleri düzeltmelerin ilk kaydıdır; güncel durum bu bölümdür. İlk bulguların
+metni inceleme geçmişini korumak için bırakılmıştır.
+
+---
 
 **Uygulama takibi (2026-10-01):** B-1 için yeni migration, avatar INSERT'inde
 `PENDING` şartını ve mevcut UPDATE değişmezliğini aynı trigger'da zorlar; şema
@@ -100,7 +138,7 @@ migrator DELETE yetkisi fail-closed kalır, bu turda genişletilmedi.
 
 ---
 
-## Özet
+## İlk incelemenin özeti (düzeltmelerden önce)
 
 İnceleme 2 yüksek, 8 orta, 8 düşük bulgu ve 23 yanlış alarm raporladı. Raporlayıcının
 kendi doğrulamasında **iki yüksek bulgunun biri düşürüldü** (gerekçesi aşağıda) ve

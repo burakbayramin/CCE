@@ -1,7 +1,12 @@
 # Bekleyen sürüm notu — review sınırı ve şema v5
 
-**Durum:** Kod yerelde hazırlanmıştır; yeni SQL migration'ları gerçek DB/CI üzerinde
-henüz doğrulanmamış ve bu sürüm deploy edilmemiştir.
+**Durum:** Kod ve SQL migration'ları yalnız izole yerel `cce-integration` yığınında
+doğrulandı: 16 migration'ın boş DB'de tekrarı, 89 pgTAP, 47 DB/Auth/Storage
+integration testi ve ayrıca iki wrapper içindeki üç gerçek tarayıcı senaryosu geçti.
+109 backend birim testi, 38 web testi, lint/typecheck ve contract kontrolleri geçti.
+Bu commit'ler için yeni GitHub CI koşusu yapılmadı; sürüm deploy edilmedi.
+Mevcut `cce-local` veritabanı ve Owner verileri değiştirilmedi; geliştirme DB'si
+hâlâ v1 olduğundan yeni API'yi orada çalıştırmak ayrıca migration gerektirir.
 
 Bu değişiklikte `ops_private.schema_version`, review sınırı migration'larında
 `1 → 2`, avatar INSERT korumasında `2 → 3`, katkıcı audit eylemi ve bozuk moderasyon
