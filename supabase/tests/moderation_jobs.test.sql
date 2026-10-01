@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(15);
 select ok(not has_table_privilege('authenticated','ops_private.moderation_jobs','SELECT'), 'No Data API job reads');
 select ok(not has_table_privilege('cce_api','ops_private.moderation_attempts','SELECT'), 'No contributor attempt reads');
 select ok(not has_table_privilege('cce_engine','ops_private.moderation_attempts','UPDATE'), 'Owner cannot rewrite attempts');
@@ -16,5 +16,12 @@ select ok((select count(*) from pg_constraint where conrelid='ops_private.modera
 select ok((select count(*) from pg_indexes where schemaname='ops_private'
     and indexname='moderation_attempts_one_running_per_job')=1,
     'Only one running attempt per job');
+select ok(not has_table_privilege('cce_engine','ops_private.moderation_retry_events','INSERT'),
+    'Owner cannot fabricate retry audit snapshots');
+select ok(has_table_privilege('cce_engine','ops_private.moderation_retry_events','SELECT'),
+    'Owner can read retry audit through RLS');
+select ok((select count(*) from pg_indexes where schemaname='ops_private'
+    and indexname='moderation_retry_events_actor_idx')=1,
+    'Retry actor foreign key is indexed');
 select * from finish();
 rollback;

@@ -11,12 +11,17 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from local_environment import ADMIN_DSN, DB_PORT
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import DBAPIError
 from test_identity_integration import settings
 from test_review_integration import FixtureModeration, decision, headers, start, submitted
 
 from cce.api_entrypoint import create_app
+from cce.infrastructure.database import create_database
+from cce.modules.contributions import review as review_module
 from cce.modules.contributions.moderation_worker import ScanEvaluation, run_once
+from cce.modules.identity.authentication import TokenVerifier
+from cce.modules.identity.repository import actor_transaction
 
 pytestmark = pytest.mark.integration
 
@@ -203,6 +208,53 @@ def test_inconsistent_pending_job_does_not_block_queue(review_accounts, orphan_s
         assert detail(api, broken["submission"], owner)["moderation_job"]["attempt_number"] == 2
 
 
+def test_retry_audit_uses_locked_state_not_api_snapshot(review_accounts, monkeypatch):
+    (owner, contributor), _ = review_accounts
+    config = settings()
+    with TestClient(create_app(config)) as api:
+        report = start(api, submitted(api, contributor), owner)
+        original = review_module.read_review
+        claimed = []
+
+        def read_then_claim(connection, submission_id):
+            snapshot = original(connection, submission_id)
+            if not claimed:
+                assert snapshot.moderation_job.state == "PENDING"
+                claimed.append(claim())
+            return snapshot
+
+        monkeypatch.setattr(review_module, "read_review", read_then_claim)
+        response = retry(api, report["submission"], owner)
+        assert response.status_code == 200
+        assert response.json()["moderation_job"]["state"] == "RUNNING"
+        engine = create_database(config, owner_commands=True)
+        try:
+            with actor_transaction(engine, TokenVerifier(config).verify(owner["token"])) as db:
+                assert db.execute(
+                    text(
+                        "select actor_user_id,previous_state,previous_attempt_number "
+                        "from ops_private.moderation_retry_events where job_id=:job"
+                    ),
+                    {"job": report["moderation_job"]["id"]},
+                ).fetchall() == [(UUID(owner["id"]), "RUNNING", 1)]
+            with (
+                pytest.raises(DBAPIError) as rejected,
+                actor_transaction(engine, TokenVerifier(config).verify(owner["token"])) as db,
+            ):
+                db.execute(
+                    text(
+                        "insert into ops_private.moderation_retry_events "
+                        "(job_id,actor_user_id,previous_state,previous_attempt_number) "
+                        "values (:job,:actor,'ERROR',999)"
+                    ),
+                    {"job": report["moderation_job"]["id"], "actor": UUID(owner["id"])},
+                )
+            assert rejected.value.orig.sqlstate == "42501"
+        finally:
+            engine.dispose()
+        assert finish(claimed[0]) is True
+
+
 def test_withdraw_during_scan_cannot_publish_result(review_accounts):
     (owner, contributor), _ = review_accounts
     with TestClient(create_app(settings())) as api:
@@ -267,6 +319,12 @@ def test_legacy_error_is_preserved_and_retryable(review_accounts):
     with TestClient(create_app(settings())) as api:
         report = retry(api, item, owner).json()
         assert report["moderation_job"]["attempts"][0]["error_code"] == "LEGACY_ERROR"
+        with psycopg.connect(ADMIN_DSN) as db:
+            assert db.execute(
+                "select previous_state,previous_attempt_number "
+                "from ops_private.moderation_retry_events where job_id=%s",
+                (report["moderation_job"]["id"],),
+            ).fetchall() == [("LEGACY_ERROR", 0)]
         work = claim()
         assert finish(work) is True
         assert detail(api, item, owner)["moderation"]["result"] == "PASS"

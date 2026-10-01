@@ -100,10 +100,9 @@ def review_router(
     def retry_scan(
         submission_id: UUID,
         payload: StartReview,
-        actor: Annotated[Actor, Depends(verified_actor)],
         connection: Annotated[Connection, Depends(transaction, scope="function")],
     ) -> ReviewDetail:
-        return retry_moderation(connection, actor, submission_id, payload)
+        return retry_moderation(connection, submission_id, payload)
 
     @router.post(
         "/{submission_id}/decision", response_model=Submission, operation_id="reviews_decide"
