@@ -57,7 +57,7 @@ function SiteHeader() {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="tr" className={`${sans.variable} ${display.variable}`}>
-      <body className="min-h-screen antialiased">
+      <body className="flex min-h-dvh flex-col antialiased">
         <a
           href="#main"
           className="cce-no-print sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-accent-700 focus:px-4 focus:py-2 focus:text-sm focus:text-white"
@@ -65,13 +65,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           İçeriğe geç
         </a>
         <SiteHeader />
-        {children}
-        <footer className="cce-no-print mt-16 border-t border-line">
-          <div className="mx-auto max-w-5xl px-6 py-6 text-xs leading-relaxed text-ink-500">
-            <p>
+        {/* Grows to fill the viewport so a short page still pins the footer to
+            the bottom; a long page simply pushes it below the fold. */}
+        <div className="flex-1">{children}</div>
+        <footer className="cce-no-print mt-auto border-t border-line bg-paper-sunk/50">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-baseline justify-between gap-x-8 gap-y-2 px-6 py-6">
+            <p className="max-w-xl text-xs leading-relaxed text-ink-500">
               Bu arayüz erken aşamadadır. Ekranda görünen moderasyon sonuçları
               fixture ise gerçek içerik güvenliği taraması değildir.
             </p>
+            <p className="font-mono text-[0.6875rem] text-ink-400">M1 · M2 · M3.2</p>
           </div>
         </footer>
       </body>
