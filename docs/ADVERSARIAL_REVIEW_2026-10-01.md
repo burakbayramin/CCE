@@ -26,6 +26,11 @@ ek olarak, marker'ı veya paylaşılan test DB'sini değiştirmeden gerekli sür
 bilinçli olarak yanlış ayarlayıp `database_ready=False` ve startup reddini
 doğrulayan negatif entegrasyon testi eklendi. Testin gerçek DB/CI sonucu bekleniyor.
 
+B-4'teki yinelenen, erişilemeyen Owner engine koruması kaldırıldı. Katkıcı ve
+Owner avatar okuma dalları ile `READY`/`PENDING` yanıtları DB gerektirmeyen
+testlerde ayrı ayrı doğrulandı. Yetki rolü ayrımı değiştirilmedi; B-4 kod
+düzeyinde kapalıdır.
+
 **Önceki kayıt:** `docs/CODE_REVIEW_2026-09-29.md` (sürüm 2 + 2026-09-30 uygulama
 notu) — o 17 bulgunun durumunu kapsar. Bu dosya yalnız 2026-10-01 tarihli
 karşıdan incelemenin bulgularını içerir ve **o dosyanın yerine geçmez**.
