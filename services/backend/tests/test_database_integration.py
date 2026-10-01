@@ -27,13 +27,13 @@ def test_local_api_role_and_readiness() -> None:
     ) as connection:
         assert connection.execute("select current_user").fetchone() == ("cce_api",)
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            3,
+            4,
         )
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             connection.execute("set role cce_migrator")
         connection.rollback()
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            connection.execute("update ops_private.schema_version set version = 4")
+            connection.execute("update ops_private.schema_version set version = 5")
         connection.rollback()
     config = Settings(
         environment="test",
@@ -50,7 +50,7 @@ def test_database_ready_rejects_schema_version_mismatch(monkeypatch: pytest.Monk
     engine = create_database(config)
     try:
         assert database_ready(engine)
-        monkeypatch.setattr(database_module, "REQUIRED_SCHEMA_VERSION", 4)
+        monkeypatch.setattr(database_module, "REQUIRED_SCHEMA_VERSION", 5)
         assert not database_ready(engine)
         with pytest.raises(RuntimeError, match="API database identity or schema"):
             with TestClient(create_app(config)):
@@ -83,11 +83,11 @@ def test_migration_owner_cannot_update_marker_under_forced_rls() -> None:
         assert connection.execute("select current_user").fetchone() == ("cce_migrator",)
         assert (
             connection.execute(
-                "update ops_private.schema_version set version=3 where singleton returning version"
+                "update ops_private.schema_version set version=4 where singleton returning version"
             ).fetchone()
             is None
         )
         connection.execute("reset role")
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            3,
+            4,
         )

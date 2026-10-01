@@ -132,6 +132,50 @@ def test_isolation_revision_and_withdrawal(
             engine.dispose()
 
 
+@pytest.mark.parametrize("action", ["START_REVIEW", "CHANGES_REQUESTED", "REJECTED", "APPROVED"])
+def test_contributor_cannot_forge_owner_audit_actions(accounts, action):
+    users, _ = accounts
+    config = settings()
+    with TestClient(create_app(config)) as api:
+        response = api.post(
+            "/contributions",
+            headers={"Authorization": f"Bearer {users[0]['token']}"},
+            json={"creation_key": str(uuid4()), "definition": proposal()},
+        )
+        assert response.status_code == 200
+        item = response.json()
+    engine = create_database(config)
+    actor = TokenVerifier(config).verify(users[0]["token"])
+    try:
+        with pytest.raises(DBAPIError) as rejected, actor_transaction(engine, actor) as db:
+            # Use a fresh version so the existing CREATED audit unique key
+            # cannot mask the action-specific RLS rejection.
+            db.execute(
+                text("update public.character_submissions set version=version+1 where id=:id"),
+                {"id": UUID(item["id"])},
+            )
+            db.execute(
+                text(
+                    "insert into ops_private.contribution_events "
+                    "(submission_id,actor_user_id,action,resulting_version) "
+                    "values (:id,:actor,:action,2)"
+                ),
+                {"id": UUID(item["id"]), "actor": actor.user_id, "action": action},
+            )
+        assert rejected.value.orig.sqlstate == "42501"
+        with psycopg.connect(ADMIN_DSN) as admin:
+            assert admin.execute(
+                "select action,resulting_version from ops_private.contribution_events "
+                "where submission_id=%s",
+                (item["id"],),
+            ).fetchall() == [("CREATED", 1)]
+            assert admin.execute(
+                "select version from public.character_submissions where id=%s", (item["id"],)
+            ).fetchone() == (1,)
+    finally:
+        engine.dispose()
+
+
 def test_concurrent_retry_and_optimistic_save(
     accounts: tuple[list[dict[str, str]], httpx.Client],
 ) -> None:

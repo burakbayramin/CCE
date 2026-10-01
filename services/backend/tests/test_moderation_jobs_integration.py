@@ -155,6 +155,54 @@ def test_pending_claim_once_retry_and_late_result(review_accounts):
         assert [a["state"] for a in final["moderation_job"]["attempts"]] == ["SUCCEEDED", "ERROR"]
 
 
+@pytest.mark.parametrize(
+    ("orphan_state", "job_counter"), [("RUNNING", 0), ("RUNNING", 1), ("ERROR", 0)]
+)
+def test_inconsistent_pending_job_does_not_block_queue(review_accounts, orphan_state, job_counter):
+    (owner, contributor), _ = review_accounts
+    with TestClient(create_app(settings())) as api:
+        broken = start(api, submitted(api, contributor), owner)
+        healthy = start(api, submitted(api, contributor), owner)
+        job_id = broken["moderation_job"]["id"]
+        with psycopg.connect(ADMIN_DSN) as db:
+            orphan_id = db.execute(
+                "insert into ops_private.moderation_attempts "
+                "(job_id,attempt_number,state,finished_at) "
+                "values (%s,1,%s,case when %s='ERROR' then now() else null end) returning id",
+                (job_id, orphan_state, orphan_state),
+            ).fetchone()[0]
+            source_sha256, avatar_sha256 = db.execute(
+                "update ops_private.moderation_jobs set attempt_number=%s, "
+                "requested_at=now()-interval '1 minute' where id=%s "
+                "returning source_sha256,avatar_sha256",
+                (job_counter, job_id),
+            ).fetchone()
+        orphan_work = {
+            "job_id": job_id,
+            "attempt_id": str(orphan_id),
+            "source_sha256": source_sha256,
+            "avatar_sha256": avatar_sha256,
+        }
+        work = claim()
+        assert work["job_id"] == healthy["moderation_job"]["id"]
+        failed = detail(api, broken["submission"], owner)["moderation_job"]
+        assert failed["state"] == "ERROR"
+        assert failed["error_code"] == "JOB_INCONSISTENT"
+        assert failed["attempt_number"] == 1
+        assert failed["attempts"][0]["state"] == "ERROR"
+        if orphan_state == "RUNNING":
+            assert failed["attempts"][0]["error_code"] == "JOB_INCONSISTENT"
+        assert finish(orphan_work) is False
+        assert finish(work) is True
+        assert retry(api, broken["submission"], owner).status_code == 200
+        recovered = claim()
+        assert recovered["job_id"] == job_id
+        assert recovered["attempt_id"] != str(orphan_id)
+        assert finish(orphan_work) is False
+        assert finish(recovered) is True
+        assert detail(api, broken["submission"], owner)["moderation_job"]["attempt_number"] == 2
+
+
 def test_withdraw_during_scan_cannot_publish_result(review_accounts):
     (owner, contributor), _ = review_accounts
     with TestClient(create_app(settings())) as api:
