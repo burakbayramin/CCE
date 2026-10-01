@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
@@ -126,6 +126,16 @@ def test_pending_claim_once_retry_and_late_result(review_accounts):
             == 409
         )
         assert retry(api, item, owner).status_code == 200
+        with psycopg.connect(ADMIN_DSN) as db:
+            events = db.execute(
+                "select actor_user_id,previous_state,previous_attempt_number "
+                "from ops_private.moderation_retry_events where job_id=%s "
+                "order by requested_at,id",
+                (work["job_id"],),
+            ).fetchall()
+        assert len(events) == 2
+        assert {row[1] for row in events} == {"PENDING", "ERROR"}
+        assert all(row[0] == UUID(owner["id"]) for row in events)
         second = claim()
         assert second["attempt_id"] != work["attempt_id"]
         assert second["source_sha256"] == work["source_sha256"]

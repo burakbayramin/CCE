@@ -113,9 +113,11 @@ def start_review(
 
 def retry_moderation(
     connection: Connection,
+    actor: Actor,
     submission_id: UUID,
     payload: StartReview,
 ) -> ReviewDetail:
+    """Record every accepted retry request, including idempotent PENDING/RUNNING calls."""
     item = read_one(connection, submission_id, lock=True)
     if (
         item.status != "UNDER_REVIEW"
@@ -128,9 +130,22 @@ def retry_moderation(
         raise ContributionError(409, "Tamamlanmış moderasyon tekrar denenemez")
     if review.moderation_job and review.moderation_job.state not in {"ERROR", "PENDING", "RUNNING"}:
         raise ContributionError(409, "Moderasyon işi tekrar denenemez")
-    connection.execute(
+    job_id = connection.execute(
         text("select ops_private.enqueue_moderation(:id,:revision)"),
         {"id": item.id, "revision": item.revision_id},
+    ).scalar_one()
+    connection.execute(
+        text(
+            "insert into ops_private.moderation_retry_events "
+            "(job_id,actor_user_id,previous_state,previous_attempt_number) "
+            "values (:job,:actor,:state,:attempt)"
+        ),
+        {
+            "job": job_id,
+            "actor": actor.user_id,
+            "state": review.moderation_job.state if review.moderation_job else "LEGACY_ERROR",
+            "attempt": review.moderation_job.attempt_number if review.moderation_job else 0,
+        },
     )
     return read_review(connection, item.id)
 

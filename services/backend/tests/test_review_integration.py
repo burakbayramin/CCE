@@ -80,6 +80,74 @@ def decision(item: dict, result: str = "APPROVED", **kwargs) -> dict:
     }
 
 
+def test_fixture_approval_requires_explicit_test_database_policy(review_accounts) -> None:
+    (owner, contributor), _ = review_accounts
+    config = settings()
+    with TestClient(create_app(config, moderation=FixtureModeration())) as api:
+        item = start(api, submitted(api, contributor), owner)["submission"]
+        with psycopg.connect(ADMIN_DSN) as admin:
+            admin.execute(
+                "update ops_private.fixture_approval_policy set enabled=false where singleton"
+            )
+        try:
+            engine = create_database(config, owner_commands=True)
+            actor = TokenVerifier(config).verify(owner["token"])
+            try:
+                with pytest.raises(DBAPIError) as rejected, actor_transaction(engine, actor) as db:
+                    db.execute(
+                        text(
+                            "update public.character_submissions set status='APPROVED', "
+                            "version=version+1 where id=:id"
+                        ),
+                        {"id": UUID(item["id"])},
+                    )
+                assert rejected.value.orig.sqlstate == "23514"
+            finally:
+                engine.dispose()
+            assert (
+                api.get(f"/reviews/{item['id']}", headers=headers(owner)).json()["submission"][
+                    "status"
+                ]
+                == "UNDER_REVIEW"
+            )
+        finally:
+            with psycopg.connect(ADMIN_DSN) as admin:
+                admin.execute(
+                    "update ops_private.fixture_approval_policy set enabled=true where singleton"
+                )
+        assert (
+            api.post(
+                f"/reviews/{item['id']}/decision", headers=headers(owner), json=decision(item)
+            ).status_code
+            == 200
+        )
+
+
+def test_owner_decision_cannot_commit_without_feedback_and_event(review_accounts) -> None:
+    (owner, contributor), _ = review_accounts
+    config = settings()
+    with TestClient(create_app(config, moderation=FixtureModeration())) as api:
+        item = start(api, submitted(api, contributor), owner)["submission"]
+        engine = create_database(config, owner_commands=True)
+        actor = TokenVerifier(config).verify(owner["token"])
+        try:
+            with pytest.raises(DBAPIError) as rejected, actor_transaction(engine, actor) as db:
+                db.execute(
+                    text(
+                        "update public.character_submissions set status='APPROVED', "
+                        "version=version+1 where id=:id"
+                    ),
+                    {"id": UUID(item["id"])},
+                )
+            assert rejected.value.orig.sqlstate == "23514"
+        finally:
+            engine.dispose()
+        assert (
+            api.get(f"/reviews/{item['id']}", headers=headers(owner)).json()["submission"]["status"]
+            == "UNDER_REVIEW"
+        )
+
+
 def test_review_revision_history_and_authorization(review_accounts) -> None:
     (owner, contributor), auth = review_accounts
     with TestClient(create_app(settings(), moderation=FixtureModeration())) as api:
