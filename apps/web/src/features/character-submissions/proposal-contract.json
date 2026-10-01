@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "texts": {
+    "name": 80,
+    "pronouns": 60,
+    "introduction": 400,
+    "occupation": 120,
+    "cultural_background": 400,
+    "humor": 200,
+    "speech_style": 300,
+    "backstory": 4000
+  },
+  "lists": {
+    "strengths": {"max_items": 8, "max_length": 200},
+    "flaws": {"max_items": 8, "max_length": 200},
+    "values": {"max_items": 8, "max_length": 200},
+    "fears": {"max_items": 8, "max_length": 200},
+    "motivations": {"max_items": 8, "max_length": 200},
+    "likes": {"max_items": 8, "max_length": 200},
+    "dislikes": {"max_items": 8, "max_length": 200},
+    "important_events": {"max_items": 8, "max_length": 200},
+    "initial_goals": {"max_items": 8, "max_length": 200},
+    "known_people": {"max_items": 8, "max_length": 200},
+    "secret_proposals": {"max_items": 8, "max_length": 200}
+  },
+  "axes": {
+    "openness": {"min": 0, "max": 100},
+    "sociability": {"min": 0, "max": 100},
+    "conscientiousness": {"min": 0, "max": 100},
+    "assertiveness": {"min": 0, "max": 100},
+    "warmth": {"min": 0, "max": 100}
+  },
+  "age": {"min": 18, "max": 10000},
+  "confirmations": ["adult_appearance_confirmed", "original_character_confirmed"]
+}

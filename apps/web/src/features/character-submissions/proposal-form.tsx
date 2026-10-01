@@ -8,22 +8,8 @@ import { useRouter } from 'next/navigation';
 import { saveDraft, transitionDraft, uploadAvatar } from '../../app/contributor/drafts/actions';
 import { PrivateAvatar } from '../../components/private-avatar';
 import type { Proposal, Submission } from '../../lib/contributions';
-
-const texts = [
-  ['name', 'İsim', 80], ['pronouns', 'Zamirler', 60], ['introduction', 'Kısa tanıtım', 400],
-  ['occupation', 'Meslek / rol', 120], ['cultural_background', 'Kültürel arka plan', 400],
-  ['humor', 'Mizah', 200], ['speech_style', 'Konuşma tarzı', 300], ['backstory', 'Geçmiş hikâyesi', 4000],
-] as const;
-const lists = [
-  ['strengths', 'Güçlü yönler'], ['flaws', 'Kusurlar'], ['values', 'Değerler'], ['fears', 'Korkular'],
-  ['motivations', 'Motivasyonlar'], ['likes', 'Sevdikleri'], ['dislikes', 'Sevmedikleri'],
-  ['important_events', 'Önemli geçmiş olayları'], ['initial_goals', 'Başlangıç hedefi önerileri'],
-  ['known_people', 'Bilinen kişi / kurum önerileri'], ['secret_proposals', 'Sır önerileri'],
-] as const;
-const axes = [
-  ['openness', 'Yeniliğe açıklık'], ['sociability', 'Sosyallik'], ['conscientiousness', 'Planlılık'],
-  ['assertiveness', 'Kendini ifade etme'], ['warmth', 'Sıcaklık'],
-] as const;
+import { apiErrorMessage } from '../../lib/api-errors';
+import { axes, confirmations, contract, lists, texts } from './proposal-fields';
 type TextKey = typeof texts[number][0];
 type ListKey = typeof lists[number][0];
 type AxisKey = typeof axes[number][0];
@@ -35,10 +21,11 @@ const shape = {
   ...(Object.fromEntries(texts.map(([key, , max]) => [key, z.string().max(max)])) as Record<TextKey, z.ZodString>),
   ...(Object.fromEntries(lists.map(([key]) => [key, z.string().refine(value => {
     const entries = value.split('\n').map(line => line.trim()).filter(Boolean);
-    return entries.length <= 8 && entries.every(line => line.length <= 200);
+    return entries.length <= contract.lists[key].max_items &&
+      entries.every(line => line.length <= contract.lists[key].max_length);
   }, 'En fazla 8 satır; her satır en fazla 200 karakter.')])) as Record<ListKey, z.ZodString>),
-  ...(Object.fromEntries(axes.map(([key]) => [key, z.number().int().min(0).max(100)])) as Record<AxisKey, z.ZodNumber>),
-  age: z.number().int().min(18).max(10000),
+  ...(Object.fromEntries(axes.map(([key]) => [key, z.number().int().min(contract.axes[key].min).max(contract.axes[key].max)])) as Record<AxisKey, z.ZodNumber>),
+  age: z.number().int().min(contract.age.min).max(contract.age.max),
   adult_appearance_confirmed: z.boolean(), original_character_confirmed: z.boolean(),
 };
 const formSchema = z.object(shape);
@@ -69,16 +56,29 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
 
   async function save(values: FormFields) {
     setBusy(true); setError('');
-    const proposal = {
-      schema_version: 1, ...Object.fromEntries(texts.map(([key]) => [key, values[key]])),
-      ...Object.fromEntries(lists.map(([key]) => [key, values[key].split('\n').map(line => line.trim()).filter(Boolean)])),
-      personality: Object.fromEntries(axes.map(([key]) => [key, values[key]])), age: values.age,
+    const entries = (key: ListKey) => values[key].split('\n').map(line => line.trim()).filter(Boolean);
+    const proposal: Proposal = {
+      schema_version: 1,
+      name: values.name, pronouns: values.pronouns, age: values.age,
+      introduction: values.introduction, occupation: values.occupation,
+      cultural_background: values.cultural_background, humor: values.humor,
+      speech_style: values.speech_style, backstory: values.backstory,
+      personality: {
+        openness: values.openness, sociability: values.sociability,
+        conscientiousness: values.conscientiousness, assertiveness: values.assertiveness,
+        warmth: values.warmth,
+      },
+      strengths: entries('strengths'), flaws: entries('flaws'), values: entries('values'),
+      fears: entries('fears'), motivations: entries('motivations'), likes: entries('likes'),
+      dislikes: entries('dislikes'), important_events: entries('important_events'),
+      initial_goals: entries('initial_goals'), known_people: entries('known_people'),
+      secret_proposals: entries('secret_proposals'),
       adult_appearance_confirmed: values.adult_appearance_confirmed,
       original_character_confirmed: values.original_character_confirmed,
-    } as Proposal;
+    };
     try {
       const result = await saveDraft(proposal, creationKey, current?.id, current?.version);
-      if (!result.data) { setError(result.error); return; }
+      if (!result.data) { setError(apiErrorMessage(result)); return; }
       setCurrent(result.data); setPreview(result.data.definition); reset(values);
       startNavigation(() => router.replace(`/contributor/drafts/${result.data.id}`));
     } catch { setError('İşlem sonucu doğrulanamadı; içeriğin korunuyor. Yeniden dene.'); }
@@ -89,7 +89,7 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     setBusy(true); setError('');
     try {
       const result = await transitionDraft(current.id, current.version, action);
-      if (!result.data) { setError(result.error); return; }
+      if (!result.data) { setError(apiErrorMessage(result)); return; }
       setCurrent(result.data); startNavigation(() => router.refresh());
     } catch { setError('İşlem sonucu doğrulanamadı. Güncel durumu kontrol etmek için sayfayı yenile.'); }
     finally { setBusy(false); }
@@ -101,7 +101,7 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     data.set('file', file); data.set('id', current.id); data.set('version', String(current.version)); data.set('key', uploadKey);
     try {
       const result = await uploadAvatar(data);
-      if (!result.data) { setError(result.error); return; }
+      if (!result.data) { setError(apiErrorMessage(result)); return; }
       setCurrent(result.data); setFile(null); startNavigation(() => router.refresh());
     } catch { setError('Yükleme sonucu doğrulanamadı; aynı dosyayla yeniden dene.'); }
     finally { setBusy(false); }
@@ -119,11 +119,10 @@ export function ProposalForm({ item, creationKey }: { item?: Submission; creatio
     <form onSubmit={handleSubmit(save)} className="mt-8 space-y-5">
       <fieldset disabled={!editable || pending} className="space-y-5 disabled:opacity-75">
         {texts.map(([key, label, max]) => <label key={key} className="block">{label}<textarea {...register(key)} maxLength={max} rows={key === 'backstory' ? 5 : 2} className="mt-1 block w-full rounded border p-3" /></label>)}
-        <label className="block">Yaş<input {...register('age', { valueAsNumber: true })} type="number" min={18} max={10000} className="ml-3 rounded border p-2" /></label>
-        <details><summary>Kişilik eksenleri (0–100)</summary><div className="mt-4 grid gap-3 sm:grid-cols-2">{axes.map(([key, label]) => <label key={key}>{label}<input {...register(key, { valueAsNumber: true })} type="number" min={0} max={100} className="ml-2 w-20 rounded border p-2" /></label>)}</div></details>
-        <details><summary>Özellikler, geçmiş olayları ve öneriler</summary><p className="my-3 text-sm">Her alana en fazla 8 satır, satır başına en fazla 200 karakter.</p>{lists.map(([key, label]) => <label key={key} className="my-4 block">{label}<textarea {...register(key)} rows={3} className="mt-1 block w-full rounded border p-3" />{errors[key] && <span role="alert">{errors[key]?.message}</span>}</label>)}</details>
-        <label className="block"><input type="checkbox" {...register('adult_appearance_confirmed')} /> Karakter açıkça yetişkin görünür.</label>
-        <label className="block"><input type="checkbox" {...register('original_character_confirmed')} /> Gerçek bir kişinin izinsiz veya telifli bir karakterin birebir kopyası değildir; özel kişisel veri içermiyor.</label>
+        <label className="block">Yaş<input {...register('age', { valueAsNumber: true })} type="number" min={contract.age.min} max={contract.age.max} className="ml-3 rounded border p-2" /></label>
+        <details><summary>Kişilik eksenleri ({contract.axes.openness.min}–{contract.axes.openness.max})</summary><div className="mt-4 grid gap-3 sm:grid-cols-2">{axes.map(([key, label]) => <label key={key}>{label}<input {...register(key, { valueAsNumber: true })} type="number" min={contract.axes[key].min} max={contract.axes[key].max} className="ml-2 w-20 rounded border p-2" /></label>)}</div></details>
+        <details><summary>Özellikler, geçmiş olayları ve öneriler</summary><p className="my-3 text-sm">Her alana en fazla {contract.lists.strengths.max_items} satır, satır başına en fazla {contract.lists.strengths.max_length} karakter.</p>{lists.map(([key, label]) => <label key={key} className="my-4 block">{label}<textarea {...register(key)} rows={3} className="mt-1 block w-full rounded border p-3" />{errors[key] && <span role="alert">{errors[key]?.message}</span>}</label>)}</details>
+        {confirmations.map(([key, label]) => <label key={key} className="block"><input type="checkbox" {...register(key)} /> {label}</label>)}
         {Object.keys(errors).length > 0 && <p role="alert">Alanları ve belirtilen sınırları kontrol et.</p>}
         <button type="submit" className="rounded bg-slate-900 px-5 py-3 text-white">Kaydet ve ön izle</button>
       </fieldset>
