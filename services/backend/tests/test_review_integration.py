@@ -126,6 +126,44 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
         )
 
 
+def test_draft_save_does_not_evaluate_owner_only_fixture_policy(review_accounts) -> None:
+    (_, contributor), _ = review_accounts
+    config = settings()
+    with TestClient(create_app(config)) as api:
+        created = api.post(
+            "/contributions",
+            headers=headers(contributor),
+            json={"creation_key": str(uuid4()), "definition": proposal()},
+        )
+        assert created.status_code == 200
+        item = created.json()
+        actor = TokenVerifier(config).verify(contributor["token"])
+        with psycopg.connect(ADMIN_DSN) as db:
+            db.execute(
+                "update ops_private.fixture_approval_policy set enabled=false where singleton"
+            )
+            db.execute(
+                "select set_config('cce.actor_id',%s,true),set_config('cce.session_id',%s,true)",
+                (str(actor.user_id), str(actor.session_id)),
+            )
+            db.execute("set local role cce_api")
+            assert db.execute("select current_user").fetchone() == ("cce_api",)
+            assert db.execute(
+                "select has_function_privilege(current_user,"
+                "'ops_private.fixture_approval_allowed()','EXECUTE')"
+            ).fetchone() == (False,)
+            assert db.execute(
+                "update public.character_submissions set version=version+1 "
+                "where id=%s returning version",
+                (item["id"],),
+            ).fetchone() == (2,)
+            db.rollback()
+        assert (
+            api.get(f"/contributions/{item['id']}", headers=headers(contributor)).json()["version"]
+            == 1
+        )
+
+
 def test_owner_decision_cannot_commit_without_feedback_and_event(review_accounts) -> None:
     (owner, contributor), _ = review_accounts
     config = settings()
