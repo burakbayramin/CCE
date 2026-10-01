@@ -35,6 +35,22 @@ düzeyinde kapalıdır.
 notu) — o 17 bulgunun durumunu kapsar. Bu dosya yalnız 2026-10-01 tarihli
 karşıdan incelemenin bulgularını içerir ve **o dosyanın yerine geçmez**.
 
+**Ek uygulama takibi:** B-2 için `cce_api` audit INSERT politikası yalnız
+`CREATED`, `SAVE`, `SUBMIT`, `WITHDRAW`, `REVISE` eylemlerine daraltıldı.
+Dört Owner eyleminin boş bir sonraki sürümde bile RLS tarafından reddedildiğini
+ve transaction'ın geri alındığını sınayan entegrasyon testleri eklendi.
+Bu, raporda düşürülen sürüm kapma iddiasını değil, gerçek audit kirletme
+açığını kapatır.
+
+B-7 için claim, kilitlediği `PENDING` işin canlı denemesi veya geride kalan
+sayacı varsa o işi `ERROR / JOB_INCONSISTENT` olarak ayırır ve sıradaki sağlam
+işe devam eder. Canlı yetim deneme ERROR olur; eski kayıtlar silinmez, sayaç
+kayıtlı en yüksek deneme numarasına tamamlanır. Owner retry daha yüksek
+numaralı yeni bir denemeyle devam eder; geç gelen eski sonuç kabul edilmez.
+Canlı yetim ve ilerideki bitmiş ledger kaydı senaryoları test kapsamına alındı.
+Bu iki DB sınırı yeni migration ve zorunlu şema `3 → 4` kapısıyla birlikte
+gelir. **Kodda giderildi; gerçek DB/pgTAP doğrulaması bekliyor.**
+
 ---
 
 ## Özet
