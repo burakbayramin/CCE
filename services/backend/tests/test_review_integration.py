@@ -85,36 +85,33 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
     config = settings()
     with TestClient(create_app(config, moderation=FixtureModeration())) as api:
         item = start(api, submitted(api, contributor), owner)["submission"]
-        with psycopg.connect(ADMIN_DSN) as admin:
+        actor = TokenVerifier(config).verify(owner["token"])
+        # Test the disabled policy in the same transaction as the raw Owner
+        # command. No committed global switch can race other fixture approvals;
+        # the rejected command rolls the local policy change back as well.
+        with pytest.raises(psycopg.errors.CheckViolation), psycopg.connect(ADMIN_DSN) as admin:
             admin.execute(
                 "update ops_private.fixture_approval_policy set enabled=false where singleton"
             )
-        try:
-            engine = create_database(config, owner_commands=True)
-            actor = TokenVerifier(config).verify(owner["token"])
-            try:
-                with pytest.raises(DBAPIError) as rejected, actor_transaction(engine, actor) as db:
-                    db.execute(
-                        text(
-                            "update public.character_submissions set status='APPROVED', "
-                            "version=version+1 where id=:id"
-                        ),
-                        {"id": UUID(item["id"])},
-                    )
-                assert rejected.value.orig.sqlstate == "23514"
-            finally:
-                engine.dispose()
-            assert (
-                api.get(f"/reviews/{item['id']}", headers=headers(owner)).json()["submission"][
-                    "status"
-                ]
-                == "UNDER_REVIEW"
+            with psycopg.connect(ADMIN_DSN) as observer:
+                assert observer.execute(
+                    "select enabled from ops_private.fixture_approval_policy where singleton"
+                ).fetchone() == (True,)
+            admin.execute(
+                "select set_config('cce.actor_id',%s,true),set_config('cce.session_id',%s,true)",
+                (str(actor.user_id), str(actor.session_id)),
             )
-        finally:
-            with psycopg.connect(ADMIN_DSN) as admin:
-                admin.execute(
-                    "update ops_private.fixture_approval_policy set enabled=true where singleton"
-                )
+            admin.execute("set local role cce_engine")
+            assert admin.execute("select current_user").fetchone() == ("cce_engine",)
+            admin.execute(
+                "update public.character_submissions set status='APPROVED', "
+                "version=version+1 where id=%s",
+                (item["id"],),
+            )
+        assert (
+            api.get(f"/reviews/{item['id']}", headers=headers(owner)).json()["submission"]["status"]
+            == "UNDER_REVIEW"
+        )
         assert (
             api.post(
                 f"/reviews/{item['id']}/decision", headers=headers(owner), json=decision(item)
