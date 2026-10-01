@@ -32,8 +32,9 @@ export async function uploadAvatar(data: FormData): Promise<ApiResult<Submission
     const response = await mediaRequest(`/contributions/${encodeURIComponent(id)}/avatar?${query}`, {
       method: 'POST', headers: { 'Content-Type': file.type }, body: await file.arrayBuffer(),
     });
+    if (!response) return { data: null, error: 'Oturum sona erdi; yeniden giriş yap.' };
     const payload = await response.json();
-    if (!response.ok) return { data: null, error: typeof payload.detail === 'string' ? payload.detail : 'Avatar doğrulanamadı.' };
+    if (!response.ok) return { data: null, error: typeof payload.detail === 'string' ? payload.detail : 'Avatar doğrulanamadı.', status: response.status };
     revalidatePath('/contributor/drafts');
     return { data: payload as Submission, error: null };
   } catch { return { data: null, error: 'Yükleme sonucu doğrulanamadı. Aynı dosyayla yeniden dene.' }; }
