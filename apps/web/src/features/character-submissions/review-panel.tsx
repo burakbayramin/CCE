@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { decideReview, retryModeration, startReview } from '../../app/admin/reviews/actions';
 import type { ReviewDetail } from '../../lib/contributions';
+import { apiErrorMessage } from '../../lib/api-errors';
 import { ProposalHistory } from './history';
 import { PrivateAvatar } from '../../components/private-avatar';
 
@@ -26,7 +27,7 @@ export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
     try {
       const result = await startReview(item.id, item.version, revisionId);
       if (result.data) router.refresh();
-      else setError(result.error);
+      else setError(apiErrorMessage(result));
     } catch { setError('İşlem sonucu doğrulanamadı; güncel durumu yenile.'); }
     });
   }
@@ -38,7 +39,7 @@ export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
       try {
         const result = await retryModeration(item.id, item.version, revisionId);
         if (result.data) router.refresh();
-        else setError(result.error);
+        else setError(apiErrorMessage(result));
       } catch { setError('Yeniden deneme sonucu doğrulanamadı; güncel durumu yenile.'); }
     });
   }
@@ -51,7 +52,7 @@ export function ReviewPanel({ detail }: { detail: ReviewDetail }) {
       const result = await decideReview(item.id, { expected_version: item.version, revision_id: revisionId,
         decision, reason, review_accepted: decision === 'APPROVED' && accepted });
       if (result.data) { setReason(''); setAccepted(false); router.refresh(); }
-      else setError(result.error);
+      else setError(apiErrorMessage(result));
     } catch { setError('Karar sonucu doğrulanamadı; güncel durumu yenile.'); }
     });
   }

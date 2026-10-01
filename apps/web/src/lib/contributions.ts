@@ -9,7 +9,9 @@ export type Proposal = components['schemas']['CharacterProposal'];
 export type SubmissionHistory = components['schemas']['SubmissionHistory'];
 export type ReviewDetail = components['schemas']['ReviewDetail'];
 export type StoredDefinition = components['schemas']['StoredDefinition'];
-export type ApiResult<T> = { data: T; error: null } | { data: null; error: string };
+export type ApiResult<T> =
+  | { data: T; error: null; status?: number }
+  | { data: null; error: string; status?: number };
 
 export async function contributionApi<T>(path = '', method = 'GET', body?: unknown): Promise<ApiResult<T>> {
   return authenticatedApi<T>(`/contributions${path}`, method, body);
@@ -36,7 +38,7 @@ async function authenticatedApi<T>(path: string, method: string, body?: unknown)
   if (response.status === 401) redirect('/login');
   let payload;
   try { payload = await response.json(); }
-  catch { return { data: null, error: 'Sunucu yanıtı doğrulanamadı. Güncel durumu kontrol et.' }; }
-  if (!response.ok) return { data: null, error: typeof payload.detail === 'string' ? payload.detail : 'Alanları ve içerik sınırlarını kontrol et.' };
-  return { data: payload as T, error: null };
+  catch { return { data: null, error: 'Sunucu yanıtı doğrulanamadı. Güncel durumu kontrol et.', status: response.status }; }
+  if (!response.ok) return { data: null, error: typeof payload.detail === 'string' ? payload.detail : 'Alanları ve içerik sınırlarını kontrol et.', status: response.status };
+  return { data: payload as T, error: null, status: response.status };
 }

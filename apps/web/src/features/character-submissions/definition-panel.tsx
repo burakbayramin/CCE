@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { compileDefinition } from '../../app/admin/reviews/actions';
 import type { StoredDefinition, Submission } from '../../lib/contributions';
+import { apiErrorMessage } from '../../lib/api-errors';
 
 export function DefinitionPanel({ item, definition }: { item: Submission; definition: StoredDefinition | null }) {
   const [busy, startTransition] = useTransition();
@@ -17,7 +18,7 @@ export function DefinitionPanel({ item, definition }: { item: Submission; defini
       try {
         const result = await compileDefinition(item.id, item.version, revisionId);
         if (result.data) router.refresh();
-        else setError(result.error);
+        else setError(apiErrorMessage(result));
       } catch { setError('Derleme sonucu doğrulanamadı. Aynı işlemle yeniden dene.'); }
     });
   }
