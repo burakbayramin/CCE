@@ -10,7 +10,21 @@ yalnızca kayıttır. İnceleme sırasında **hiçbir yeni migration çalıştı
 makinede Docker yok, dolayısıyla `supabase db reset`, pgTAP ve integration testleri
 koşmadı. Aşağıdaki hiçbir SQL iddiası çalıştırılarak doğrulanmadı.
 
-**Durum:** Raporlayıcı önerisi. Hiçbiri kabul/reddedilmemiş, hiçbiri düzeltilmemiş.
+**İlk durum:** Raporlayıcı önerisi. İlk incelemede hiçbir düzeltme yapılmadı.
+
+**Uygulama takibi (2026-10-01):** B-1 için yeni migration, avatar INSERT'inde
+`PENDING` şartını ve mevcut UPDATE değişmezliğini aynı trigger'da zorlar; şema
+hazırlık işareti bu güvenlik sınırı için `2 → 3` yükseltilir. API rolüyle sahte
+`READY` INSERT'ünün reddini sınayan entegrasyon testi ve INSERT/UPDATE trigger
+kapsamı için pgTAP kontrolü eklendi. Bu testler gerçek DB'de henüz çalıştırılmadı;
+B-1 bu yüzden **kodda giderildi, DB doğrulaması bekliyor** durumundadır.
+
+B-3'ün "gerçek SQL hiç test edilmiyor" iddiası eksikti: mevcut
+`test_local_api_role_and_readiness`, `TestClient(create_app(config))` ile gerçek
+DB'de pozitif başlangıç ve `/health/ready` yolunu zaten çalıştırıyordu. Buna
+ek olarak, marker'ı veya paylaşılan test DB'sini değiştirmeden gerekli sürümü
+bilinçli olarak yanlış ayarlayıp `database_ready=False` ve startup reddini
+doğrulayan negatif entegrasyon testi eklendi. Testin gerçek DB/CI sonucu bekleniyor.
 
 **Önceki kayıt:** `docs/CODE_REVIEW_2026-09-29.md` (sürüm 2 + 2026-09-30 uygulama
 notu) — o 17 bulgunun durumunu kapsar. Bu dosya yalnız 2026-10-01 tarihli
