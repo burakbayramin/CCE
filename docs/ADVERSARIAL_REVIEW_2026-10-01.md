@@ -63,6 +63,13 @@ UI tablolarına girmeyen yeni alan değişiklikleri artık contract kontrolünde
 görünür. Sekiz DB gerektirmeyen test snapshot uyumunu ve negatif drift
 senaryolarını doğrular. Mevcut UI alan düzeni değiştirilmedi.
 
+B-5 için görsel çözümlemesi ilk actor transaction'ında, canlı DB kimlik
+kontrolünden sonraya taşındı. İptal/ban halinde decoder ve rezervasyon
+çalışmaz; ikinci fazdaki iptal de attach öncesinde reddedilir. Bu iki yol
+DB gerektirmeyen testlerde doğrulandı. Ek checkout açılmaz; sınırlı decode
+süresince bağlantı tutulur ama taslak satır kilidi ancak decode sonrasında
+alınır. Storage I/O transaction dışında kalır. **Kod ve birim testleri tamam.**
+
 ---
 
 ## Özet
