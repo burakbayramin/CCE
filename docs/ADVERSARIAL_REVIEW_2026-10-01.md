@@ -86,6 +86,18 @@ ruff/format, açık backend config'iyle strict mypy, web lint/typecheck ve
 proposal contract kontrolü geçti. Kökten çalışan CI/README mypy komutu da
 backend config'ini açıkça seçer. Bu sonuçlar DB/Auth entegrasyon kanıtı değildir.
 
+**Düşük bulgu takibi:** Medya fetch/timeout ve response stream hataları boş,
+sanitize edilmiş 503'e çevrildi; private/no-store ve nosniff korunur. Web
+testleri bu iki hata sınıfını da içerir (toplam 38 test geçti). Fixture approval
+guard'ı ayrı PL/pgSQL dallarıyla, yalnız gerçek approval geçişinde Owner-only
+işlemleri değerlendirir; katkıcı DRAFT UPDATE'i için rol/EXECUTE sınırını da
+kontrol eden DB testi eklendi. Bu davranış-uyumlu guard düzenlemesi yeni API
+veya şema nesnesi gerektirmediğinden mevcut v5 kapısını değiştirmez; migration
+ve testin canlı sonucu yine bekleniyor. Retry actor indeks/okuma eksikliği B-9
+ile giderildi. Proxy matcher, kasıtlı hata maskelemesi, marker'ın yapısal
+kontrol kapsamı ve salt okunur fixture bayrağı mevcut tasarım notlarıdır;
+migrator DELETE yetkisi fail-closed kalır, bu turda genişletilmedi.
+
 ---
 
 ## Özet
@@ -517,14 +529,11 @@ migration ilk kez orada koşacak.
 8. **B-8** — fixture bayrağı kilidi
 9. **B-9** — retry kaydını `enqueue_moderation`'a taşı
 
-**Bilinçli olarak açık bırakıldı (ürün kararı):**
-Onay checkbox'ları (`adult_appearance_confirmed`, `original_character_confirmed`) üç
-katmanda da toplanıyor, render ediliyor ve sözleşmeyle izleniyor — ama **hiçbir katman
-zorlamıyor**. `proposal-form.tsx:29` yalnız `z.boolean()`, `schemas.py:44-45` yalnız
-`bool = False`, veritabanı yalnız `jsonb_typeof` kontrol ediyor. Katkıcı her ikisini de
-`false` bırakarak gönderebilir. Bu değişiklik alanları daha görünür kıldı, ancak
-danışmanlık hâlâ bağlayıcı değil. Kapatılması bir ürün kararıdır; kapatılırsa üç
-katmana birden eklenmelidir.
+**Checkbox iddiasının düzeltmesi:** Onaylar DRAFT için opsiyoneldir; SUBMIT
+için değildir. `repository.change_draft`, iki onaydan biri false ise gönderimi
+422 ile reddeder; `compiler.compile_definition` de eksik onayla definition
+üretmez. Önceki "hiçbir katman zorlamıyor / false ile gönderilebilir" iddiası
+yanlıştı ve geri çekildi. Taslak aşamasındaki varsayılan false değiştirilmedi.
 
 ---
 
@@ -534,3 +543,10 @@ Bu kayıt `8fed08f` commit'i üzerinde alınmıştır. B-1, B-2 ve B-3 düzeltil
 dosyadaki durum güncellenmelidir. Yeni migration veya endpoint eklendiğinde **B-1**
 (avatar `READY` yazma yolu) yeniden doğrulanmalıdır — çünkü `cce_api`'nin INSERT
 yapabildiği herhangi bir tablo aynı sınıfı taşır.
+
+RI/FORCE RLS notuna resmî dayanak: PostgreSQL, foreign key/unique gibi
+referential integrity kontrollerinin row security'yi atladığını açıkça
+belirtir. Bu yüzden hedef tabloya sırf FK için migrator SELECT politikası
+eklenmesi gerekmez. [PostgreSQL Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html).
+Bu teknik kuralın doğrulanması, yeni migration'ların bu makinede çalıştırıldığı
+anlamına gelmez; gerçek DB/CI koşusu hâlâ gereklidir.
