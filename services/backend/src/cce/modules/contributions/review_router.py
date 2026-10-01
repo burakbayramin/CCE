@@ -20,12 +20,11 @@ from cce.modules.contributions.schemas import (
 )
 from cce.modules.identity.authentication import TokenVerifier
 from cce.modules.identity.domain import Actor, AuthenticationFailed
-from cce.modules.identity.repository import actor_transaction, identity_context
+from cce.modules.identity.repository import actor_transaction
 from cce.modules.identity.router import actor_dependency
 
 
 def review_router(
-    api_engine: Engine,
     owner_engine: Engine | None,
     verifier: TokenVerifier,
     provider: ModerationProvider | None,
@@ -41,9 +40,6 @@ def review_router(
 
     def transaction(actor: Annotated[Actor, Depends(verified_actor)]) -> Iterator[Connection]:
         try:
-            identity = identity_context(api_engine, actor)
-            if identity["role"] != "world_owner":
-                raise HTTPException(403, "World Owner required")
             if owner_engine is None:
                 raise HTTPException(503, "Owner command database is not configured")
             with actor_transaction(owner_engine, actor) as connection:
@@ -51,7 +47,10 @@ def review_router(
                 row = connection.execute(
                     text("select actor_role from ops_private.current_identity()")
                 )
-                if row.scalar_one_or_none() != "world_owner":
+                role = row.scalar_one_or_none()
+                if role is None:
+                    raise HTTPException(401, "Authentication required")
+                if role != "world_owner":
                     raise HTTPException(403, "World Owner required")
                 yield connection
         except AuthenticationFailed:

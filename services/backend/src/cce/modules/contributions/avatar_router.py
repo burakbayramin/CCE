@@ -44,17 +44,17 @@ def avatar_router(
         authorization: str,
     ) -> Submission:
         try:
-            identity_context(api_engine, actor)
             storage = AvatarStorage(config, authorization)
             image = verify_image(content, content_type)
             with actor_transaction(api_engine, actor) as connection:
+                identity_context(connection, actor)
                 asset = reserve_avatar(
                     connection, actor, submission_id, expected_version, upload_key, image
                 )
             # No transaction or draft lock is held while Storage is contacted.
             storage.store(asset, image)
-            identity_context(api_engine, actor)
             with actor_transaction(api_engine, actor) as connection:
+                identity_context(connection, actor)
                 return attach_avatar(connection, actor, asset, expected_version)
         except AuthenticationFailed:
             raise HTTPException(401, "Authentication required") from None
@@ -101,14 +101,20 @@ def avatar_router(
         asset_id: UUID, request: Request, actor: Annotated[Actor, Depends(verified_actor)]
     ) -> Response:
         try:
-            identity = identity_context(api_engine, actor)
-            engine = owner_engine if identity["role"] == "world_owner" else api_engine
-            if engine is None:
-                raise ContributionError(503, "Owner command database is not configured")
-            with actor_transaction(engine, actor) as connection:
-                asset = read_asset(connection, asset_id)
-                if asset.status != "READY":
-                    raise ContributionError(404, "Avatar bulunamadı")
+            with actor_transaction(api_engine, actor) as connection:
+                identity = identity_context(connection, actor)
+                if identity["role"] == "world_owner":
+                    if owner_engine is None:
+                        raise ContributionError(503, "Owner command database is not configured")
+                else:
+                    asset = read_asset(connection, asset_id)
+            if identity["role"] == "world_owner":
+                if owner_engine is None:
+                    raise ContributionError(503, "Owner command database is not configured")
+                with actor_transaction(owner_engine, actor) as connection:
+                    asset = read_asset(connection, asset_id)
+            if asset.status != "READY":
+                raise ContributionError(404, "Avatar bulunamadı")
             content = AvatarStorage(config, request.headers.get("authorization", "")).read(asset)
             return Response(
                 content,

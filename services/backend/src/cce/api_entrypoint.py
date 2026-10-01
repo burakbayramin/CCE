@@ -52,7 +52,6 @@ def create_app(
     app.include_router(avatar_router(config, engine, owner_engine, verifier))
     app.include_router(
         review_router(
-            engine,
             owner_engine,
             verifier,
             moderation,

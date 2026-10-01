@@ -37,8 +37,8 @@ def contributions_router(engine: Engine, verifier: TokenVerifier) -> APIRouter:
 
     def transaction(actor: Annotated[Actor, Depends(verified_actor)]) -> Iterator[Connection]:
         try:
-            identity_context(engine, actor)
             with actor_transaction(engine, actor) as connection:
+                identity_context(connection, actor)
                 yield connection
         except AuthenticationFailed:
             raise HTTPException(401, "Authentication required") from None

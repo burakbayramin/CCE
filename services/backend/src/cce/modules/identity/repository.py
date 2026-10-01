@@ -25,14 +25,14 @@ def actor_transaction(engine: Engine, actor: Actor) -> Iterator[Connection]:
         yield connection
 
 
-def identity_context(engine: Engine, actor: Actor) -> dict[str, object]:
-    with actor_transaction(engine, actor) as connection:
-        record = connection.execute(text("select * from ops_private.current_identity()"))
-        row = record.mappings().one_or_none()
-        if row is None:
-            raise AuthenticationFailed
-        connection.execute(
-            text("insert into public.profiles (user_id) values (:user_id) on conflict do nothing"),
-            {"user_id": actor.user_id},
-        )
-        return {"user_id": actor.user_id, "role": row["actor_role"], "person_id": row["person_id"]}
+def identity_context(connection: Connection, actor: Actor) -> dict[str, object]:
+    """Validate the actor using the caller's transaction, without a second checkout."""
+    record = connection.execute(text("select * from ops_private.current_identity()"))
+    row = record.mappings().one_or_none()
+    if row is None:
+        raise AuthenticationFailed
+    connection.execute(
+        text("insert into public.profiles (user_id) values (:user_id) on conflict do nothing"),
+        {"user_id": actor.user_id},
+    )
+    return {"user_id": actor.user_id, "role": row["actor_role"], "person_id": row["person_id"]}

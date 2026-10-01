@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cce.modules.identity.authentication import TokenVerifier
 from cce.modules.identity.domain import Actor, AuthenticationFailed, AuthenticationUnavailable
-from cce.modules.identity.repository import identity_context
+from cce.modules.identity.repository import actor_transaction, identity_context
 
 
 class Identity(BaseModel):
@@ -53,7 +53,8 @@ def identity_router(engine: Engine, verifier: TokenVerifier) -> APIRouter:
 
     def current_identity(actor: Annotated[Actor, Depends(verified_actor)]) -> Identity:
         try:
-            return Identity.model_validate(identity_context(engine, actor))
+            with actor_transaction(engine, actor) as connection:
+                return Identity.model_validate(identity_context(connection, actor))
         except AuthenticationFailed:
             raise HTTPException(401, "Authentication required") from None
         except SQLAlchemyError:
