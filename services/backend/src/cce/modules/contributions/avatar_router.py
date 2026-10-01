@@ -45,9 +45,12 @@ def avatar_router(
     ) -> Submission:
         try:
             storage = AvatarStorage(config, authorization)
-            image = verify_image(content, content_type)
             with actor_transaction(api_engine, actor) as connection:
                 identity_context(connection, actor)
+                # Reject revoked/banned sessions before bounded CPU decoding.
+                # Reuse this checkout; reserve_avatar acquires the draft lock
+                # only after decoding, and Storage still runs outside the tx.
+                image = verify_image(content, content_type)
                 asset = reserve_avatar(
                     connection, actor, submission_id, expected_version, upload_key, image
                 )

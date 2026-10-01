@@ -16,7 +16,7 @@ from cce.modules.contributions import review_router as review_routes
 from cce.modules.contributions import router as contribution_routes
 from cce.modules.contributions.repository import ContributionError
 from cce.modules.identity.authentication import TokenVerifier
-from cce.modules.identity.domain import Actor
+from cce.modules.identity.domain import Actor, AuthenticationFailed
 from cce.modules.identity.repository import identity_context
 
 
@@ -180,7 +180,12 @@ def test_avatar_upload_reuses_each_phase_transaction(
 
     monkeypatch.setattr(avatar_routes, "actor_transaction", transaction)
     monkeypatch.setattr(avatar_routes, "identity_context", validate)
-    monkeypatch.setattr(avatar_routes, "verify_image", lambda *_: object())
+
+    def decode(*_: object) -> object:
+        assert active and identity_checks == [connection]
+        return object()
+
+    monkeypatch.setattr(avatar_routes, "verify_image", decode)
     monkeypatch.setattr(avatar_routes, "reserve_avatar", lambda *_: object())
     monkeypatch.setattr(avatar_routes, "attach_avatar", conflict)
     monkeypatch.setattr(
@@ -205,3 +210,51 @@ def test_avatar_upload_reuses_each_phase_transaction(
     assert response.status_code == 409
     assert opened == [api_engine, api_engine]
     assert identity_checks == [connection, connection]
+
+
+@pytest.mark.parametrize("rejected_phase", [1, 2])
+def test_avatar_upload_rejects_revoked_session_before_phase_work(monkeypatch, rejected_phase):
+    value = actor()
+    api_engine = cast(Engine, object())
+    connection = MagicMock(spec=Connection)
+    checks = 0
+    decoder = MagicMock(return_value=object())
+    reserve = MagicMock(return_value=object())
+    attach = MagicMock()
+    storage = MagicMock()
+
+    @contextmanager
+    def transaction(target, candidate):
+        assert target is api_engine and candidate == value
+        yield connection
+
+    def validate(target, candidate):
+        nonlocal checks
+        assert target is connection and candidate == value
+        checks += 1
+        if checks == rejected_phase:
+            raise AuthenticationFailed()
+        return {"role": "contributor"}
+
+    monkeypatch.setattr(avatar_routes, "actor_transaction", transaction)
+    monkeypatch.setattr(avatar_routes, "identity_context", validate)
+    monkeypatch.setattr(avatar_routes, "verify_image", decoder)
+    monkeypatch.setattr(avatar_routes, "reserve_avatar", reserve)
+    monkeypatch.setattr(avatar_routes, "attach_avatar", attach)
+    monkeypatch.setattr(avatar_routes, "AvatarStorage", lambda *_: storage)
+    app = FastAPI()
+    app.include_router(
+        avatar_routes.avatar_router(cast(Settings, object()), api_engine, None, verifier_for(value))
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            f"/contributions/{uuid4()}/avatar?expected_version=1&upload_key={uuid4()}",
+            headers={"Authorization": "Bearer test", "Content-Type": "image/png"},
+            content=b"image",
+        )
+    assert response.status_code == 401
+    assert checks == rejected_phase
+    assert decoder.call_count == rejected_phase - 1
+    assert reserve.call_count == rejected_phase - 1
+    assert storage.store.call_count == rejected_phase - 1
+    attach.assert_not_called()
