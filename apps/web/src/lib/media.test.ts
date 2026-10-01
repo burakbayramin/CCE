@@ -36,6 +36,16 @@ async function request() {
 }
 
 describe('private media authorization gate', () => {
+  it.each([
+    new Error('private-dsn session-token upstream unavailable'),
+    new DOMException('private upstream timeout', 'TimeoutError'),
+  ])('sanitizes network failures without turning them into 401', async error => {
+    fetchMock.mockRejectedValueOnce(error);
+    const response = await request();
+    expect(response?.status).toBe(503);
+    expect(await response?.text()).toBe('');
+  });
+
   it('refuses every unauthenticated shape without touching the API', async () => {
     const denied: [string, () => void][] = [
       ['auth config missing', () => { mocks.authConfig = null; }],

@@ -18,12 +18,25 @@ describe('private media route', () => {
   });
 
   it('preserves upstream authorization and missing-image status', async () => {
-    for (const status of [403, 404]) {
+    for (const status of [403, 404, 503]) {
       vi.mocked(mediaRequest).mockResolvedValueOnce(new Response(null, { status }));
       const response = await GET(new Request('http://localhost/media/test'), {
         params: Promise.resolve({ id: 'test' }),
       });
       expect(response.status).toBe(status);
     }
+  });
+
+  it('sanitizes failures while reading the upstream image stream', async () => {
+    const upstream = new Response('image', { status: 200 });
+    vi.spyOn(upstream, 'arrayBuffer').mockRejectedValueOnce(new Error('private-dsn session-token'));
+    vi.mocked(mediaRequest).mockResolvedValueOnce(upstream);
+    const response = await GET(new Request('http://localhost/media/test'), {
+      params: Promise.resolve({ id: 'test' }),
+    });
+    expect(response.status).toBe(503);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(await response.text()).toBe('');
   });
 });
