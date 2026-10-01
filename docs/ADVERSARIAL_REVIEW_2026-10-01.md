@@ -51,6 +51,12 @@ Canlı yetim ve ilerideki bitmiş ledger kaydı senaryoları test kapsamına al�
 Bu iki DB sınırı yeni migration ve zorunlu şema `3 → 4` kapısıyla birlikte
 gelir. **Kodda giderildi; gerçek DB/pgTAP doğrulaması bekliyor.**
 
+B-8'in fixture politika testi artık global bayrağı commit edip başka
+transaction'larda geri açmaz. Kapalı politika ve impersonated `cce_engine`
+komutu tek transaction'da çalışır; fixture korumasının beklenen hatasıyla
+ikisi de rollback olur. İkinci bağlantının hâlâ açık politika görmesi de
+testte kontrol edilir. **Test düzeltildi; canlı DB sonucu bekliyor.**
+
 ---
 
 ## Özet

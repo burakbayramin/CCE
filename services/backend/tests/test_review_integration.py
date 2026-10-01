@@ -89,7 +89,13 @@ def test_fixture_approval_requires_explicit_test_database_policy(review_accounts
         # Test the disabled policy in the same transaction as the raw Owner
         # command. No committed global switch can race other fixture approvals;
         # the rejected command rolls the local policy change back as well.
-        with pytest.raises(psycopg.errors.CheckViolation), psycopg.connect(ADMIN_DSN) as admin:
+        with (
+            pytest.raises(
+                psycopg.errors.CheckViolation,
+                match="Fixture moderation cannot approve a real submission",
+            ),
+            psycopg.connect(ADMIN_DSN) as admin,
+        ):
             admin.execute(
                 "update ops_private.fixture_approval_policy set enabled=false where singleton"
             )
