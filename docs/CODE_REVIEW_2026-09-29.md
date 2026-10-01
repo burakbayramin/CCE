@@ -59,6 +59,26 @@ runtime role üyelikleri pgTAP canary'siyle kontrol edilir.
 `repository.py` SUBMIT sırasında iki onayı da zorunlu tutuyor. Taslak kaydında
 onayların boş bırakılabilmesi ayrı bir ürün kararıdır.
 
+### 2026-10-01 Bulgu 4 ve 17 takip notu
+
+- **Bulgu 4 — kod düzeyinde kapalı:** `identity_context` artık çağıranın
+  transaction'ını kullanır. Katkı istekleri ve katkıcının avatar okuması tek
+  bağlantıda kalır; avatar yüklemesinin iki DB fazı Storage çağrısının iki
+  yanında ayrı transaction olarak korunur. Review isteği Owner rolündeki tek
+  transaction'da kimliği ve yetkiyi kontrol eder. World Owner'ın avatar
+  okumasında API rolünden Owner rolüne geçiş için iki bağlantı kasıtlıdır.
+  Bağlantı sayısı/ayrımı DB gerektirmeyen regresyon testleriyle doğrulandı;
+  canlı DB entegrasyonu ve yük altında kapasite ölçümü henüz yapılmadı.
+- **Bulgu 17 — kod düzeyinde kapalı:** Bilinmeyen `kid` için JWKS yenilemesi
+  bağlantı hatası verirse, daha önce güvenilir anahtar görülmüş olduğunda 401
+  döner; bilinen anahtarın yenilemesi veya ilk JWKS erişimi başarısızsa 503
+  döner. `kid` içermeyen token JWKS isteği yapılmadan reddedilir. PyJWT
+  yenilemesi, başarılı yeni anahtar rotasyonu ve HTTP 401/503 ayrımı yerel
+  testlerle doğrulandı; canlı Supabase anahtar rotasyonu testi yapılmadı.
+
+Yukarıdaki 2026-09-30 durum tablosu tarihsel kayıttır; bu not Bulgu 4 ve 17
+için güncel durumu belirtir.
+
 > **Sürüm 2 (2026-09-29, ikinci geçiş).** İlk sürüm 17 bulguyu 5 "yüksek" ile
 > sunmuştu. Kod karşılaştırması sonrası **iki bulgu yanlış çıkarıldı, üçünün önceliği
 > düşürüldü, birinin yükseltildi.** Düzeltmeler ve gerekçeleri aşağıda açıkça
