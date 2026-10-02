@@ -14,11 +14,13 @@ from local_tools import pnpm_command
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from test_identity_integration import settings
+from test_moderation_process import fixture_context
 from test_review_integration import FixtureModeration, decision, headers, start, submitted
 
 from cce.api_entrypoint import create_app
 from cce.infrastructure.database import create_database
 from cce.modules.contributions import review as review_module
+from cce.modules.contributions.moderation_process import ProcessLocalScanner
 from cce.modules.contributions.moderation_worker import ScanEvaluation, run_once
 from cce.modules.identity.authentication import TokenVerifier
 from cce.modules.identity.repository import actor_transaction
@@ -365,6 +367,51 @@ def test_worker_releases_database_connection_before_scanning(review_accounts):
             assert report["moderation_job"]["state"] == "SUCCEEDED"
     finally:
         engine.dispose()
+
+
+def test_process_timeout_persists_error_and_owner_retry_keeps_attempt_history(review_accounts):
+    (owner, contributor), _ = review_accounts
+    engine = create_engine(
+        f"postgresql+psycopg://cce_worker_cpu:cce-local-worker-only@127.0.0.1:{DB_PORT}/postgres",
+        pool_size=1,
+        max_overflow=0,
+    )
+    scanner = ProcessLocalScanner(fixture_context, ("hang",), timeout_seconds=0.15)
+    try:
+        scanner.prepare()
+        with TestClient(create_app(settings())) as api:
+            item = start(api, submitted(api, contributor), owner)["submission"]
+            assert run_once(engine, scanner) is True
+            failed = detail(api, item, owner)
+            job = failed["moderation_job"]
+            assert job["state"] == "ERROR"
+            assert job["error_code"] == "MODEL_TIMEOUT"
+            assert job["attempts"][0]["error_code"] == "MODEL_TIMEOUT"
+            assert failed["moderation"] is None
+            assert scanner._process is None
+            assert engine.pool.checkedout() == 0
+            assert (
+                api.post(
+                    f"/reviews/{item['id']}/decision", headers=headers(owner), json=decision(item)
+                ).status_code
+                == 409
+            )
+            assert retry(api, item, owner).status_code == 200
+            scanner.args = ("ok",)
+            scanner.timeout_seconds = 5
+            scanner.prepare()
+            assert run_once(engine, scanner) is True
+            recovered = detail(api, item, owner)
+            assert recovered["moderation_job"]["state"] == "SUCCEEDED"
+            assert recovered["moderation"]["result"] == "REVIEW"
+            attempts = recovered["moderation_job"]["attempts"]
+            assert [attempt["state"] for attempt in attempts] == ["SUCCEEDED", "ERROR"]
+            assert attempts[1]["error_code"] == "MODEL_TIMEOUT"
+    finally:
+        try:
+            scanner.close()
+        finally:
+            engine.dispose()
 
 
 def test_withdraw_before_claim_cancels_pending_job(review_accounts):
