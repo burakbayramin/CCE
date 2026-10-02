@@ -1,5 +1,40 @@
 name: cce-foundation
 services:
+  moderation-worker:
+    profiles: [moderation-worker]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    command: ["/app/services/backend/.venv/bin/cce-moderation-worker"]
+    environment:
+      CCE_ENVIRONMENT: ${CCE_ENVIRONMENT:-}
+      CCE_WORKER_DATABASE_URL: ${CCE_WORKER_DATABASE_URL:-}
+      CCE_STORAGE_URL: ${CCE_STORAGE_URL:-}
+      CCE_SUPABASE_PUBLISHABLE_KEY: ${CCE_SUPABASE_PUBLISHABLE_KEY:-}
+      CCE_MODERATION_AUTH_USER_ID: ${CCE_MODERATION_AUTH_USER_ID:-}
+      CCE_MODERATION_AUTH_EMAIL: ${CCE_MODERATION_AUTH_EMAIL:-}
+      CCE_MODERATION_AUTH_PASSWORD: ${CCE_MODERATION_AUTH_PASSWORD:-}
+      CCE_MODERATION_SCANNER_FACTORY: ${CCE_MODERATION_SCANNER_FACTORY:-}
+      CCE_MODERATION_IDLE_SECONDS: ${CCE_MODERATION_IDLE_SECONDS:-2}
+      CCE_MODERATION_STARTUP_SECONDS: ${CCE_MODERATION_STARTUP_SECONDS:-120}
+      CCE_MODERATION_TIMEOUT_SECONDS: ${CCE_MODERATION_TIMEOUT_SECONDS:-120}
+      PYTHONDONTWRITEBYTECODE: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    restart: "on-failure:3"
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
   api:
     build:
       context: .
