@@ -3,7 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cce.core.config import Settings
 
-REQUIRED_SCHEMA_VERSION = 10
+REQUIRED_SCHEMA_VERSION = 12
 
 
 def create_database(settings: Settings, *, owner_commands: bool = False) -> Engine:
