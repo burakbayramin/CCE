@@ -73,7 +73,19 @@ jobs:
         run: |
           export CCE_TEST_SUPABASE_PUBLISHABLE_KEY="$(pnpm exec supabase status -o json | jq -r '.PUBLISHABLE_KEY')"
           export CCE_TEST_STORAGE_ADMIN_KEY="$(pnpm exec supabase status -o json | jq -r '.SERVICE_ROLE_KEY')"
-          uv run --project services/backend pytest services/backend/tests -m integration
+          set -o pipefail
+          uv run --project services/backend pytest services/backend/tests -m integration -q -rf \
+            2>&1 | tee integration.log || {
+              # Surface the failing node ids as check annotations: the run page
+              # requires a signed-in session, annotations do not.
+              grep -E '^(FAILED|ERROR) ' integration.log | while IFS= read -r line; do
+                echo "::error title=Integration failure::${line}"
+              done
+              grep -E '^(E   +|E +assert)' integration.log | head -40 | while IFS= read -r line; do
+                echo "::error title=Integration detail::${line}"
+              done
+              exit 1
+            }
       - run: pnpm --filter @cce/web exec playwright install --with-deps chromium
       - run: pnpm build
       - name: Web to API to DB smoke
