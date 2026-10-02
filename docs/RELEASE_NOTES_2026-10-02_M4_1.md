@@ -5,9 +5,11 @@
 
 > [!WARNING]
 > **Yeni migration henüz çalıştırılmadı.** `supabase start` bu migration'ı uygularken
-> başarısız oldu ve kök neden henüz teşhis edilmedi. Bu doküman yalnız **niyeti** kaydeder,
-> doğrulanmış davranışı değil. Şema `version = 9` olarak hedefleniyor ama henüz oraya
-> ulaşılmadı.
+> başarısız oldu. İlk iki başarısız koşu yanlışlıkla migration'a yoruldu; sonraki koşuda
+> alınan log kuyruğu kök nedenin **Docker Hub rate limit** olduğunu gösteriyor
+> (`toomanyrequests: Rate exceeded`, ardından CLI'ın rol kurma adımında 42501). Bu bir altyapı
+> hatasıdır; migration'ın SQL'i henüz test edilmemiş olmaya devam ediyor ve **başarılı
+> sayılamaz**. Şema `version = 9` olarak hedefleniyor ama oraya ulaşıldığı doğrulanmadı.
 
 ---
 
@@ -80,7 +82,7 @@ karakteri kalıcı olarak kilitli tutardı.
 | :-- | :-- |
 | ruff / format / mypy | ✅ |
 | Backend birim testleri | ✅ 140 |
-| Migration uygulaması | ❌ **başarısız — kök neden teşhis edilmedi** |
+| Migration uygulaması | ⚠️ **3 koşu da altyapı nedeniyle koşmadı** (Docker Hub rate limit); SQL'in kendisi test edilmedi |
 | 4 yeni entegrasyon testi | ⏳ CI'da koşacak |
 
 Yazılan entegrasyon testleri M4.1'in dört maddesini sabitliyor: tek rezervasyon ve
