@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { reviewApi, type ActivatedCharacter, type LifecycleChange, type ReviewDetail, type Submission, type StoredDefinition } from '../../../lib/contributions';
+import { reviewApi, type ActivatedCharacter, type DefinitionChange, type LifecycleChange, type ReviewDetail, type Submission, type StoredDefinition } from '../../../lib/contributions';
 import type { components } from '../../../lib/api/generated/schema';
 
 export async function startReview(id: string, version: number, revisionId: string) {
@@ -50,6 +50,17 @@ export async function changeFixtureLifecycle(
 ) {
   const result = await reviewApi<LifecycleChange>(
     `/${encodeURIComponent(id)}/lifecycle/${action}`, 'POST', command,
+  );
+  if (result.data) revalidatePath(`/admin/reviews/${id}`);
+  return result;
+}
+
+export async function adoptFixtureDefinition(
+  id: string,
+  command: components['schemas']['AdoptDefinition'],
+) {
+  const result = await reviewApi<DefinitionChange>(
+    `/${encodeURIComponent(id)}/definition-changes`, 'POST', command,
   );
   if (result.data) revalidatePath(`/admin/reviews/${id}`);
   return result;

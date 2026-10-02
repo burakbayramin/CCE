@@ -7,11 +7,13 @@ import {
   type StoredDefinition,
   type ActivatedCharacter,
   type CharacterCapacity,
+  type DefinitionChange,
   type LifecycleChange,
 } from '../../../../lib/contributions';
 import { apiErrorMessage } from '../../../../lib/api-errors';
 import { ReviewPanel } from '../../../../features/character-submissions/review-panel';
 import { DefinitionPanel } from '../../../../features/character-submissions/definition-panel';
+import { DefinitionChangePanel } from '../../../../features/character-submissions/definition-change-panel';
 import { ActivationPanel } from '../../../../features/character-submissions/activation-panel';
 import { Notice, Page, PageHeader } from '../../../../components/ui';
 
@@ -23,14 +25,15 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
   const result = await reviewApi<ReviewDetail>(`/${encodeURIComponent(id)}`);
   if (result.status === 404) notFound();
   const approved = result.data?.submission.status === 'APPROVED';
-  const [compiled, activated, capacity, lifecycle] = approved
+  const [compiled, activated, capacity, lifecycle, changes] = approved
     ? await Promise.all([
         reviewApi<StoredDefinition | null>(`/${encodeURIComponent(id)}/definition`),
         reviewApi<ActivatedCharacter | null>(`/${encodeURIComponent(id)}/activation`),
         reviewApi<CharacterCapacity>('/capacity'),
         reviewApi<LifecycleChange[]>(`/${encodeURIComponent(id)}/lifecycle`),
+        reviewApi<DefinitionChange[]>(`/${encodeURIComponent(id)}/definition-changes`),
       ])
-    : [null, null, null];
+    : [null, null, null, null, null];
 
   return (
     <Page width="wide">
@@ -58,6 +61,18 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
                 definition={compiled?.data ?? null}
               />
             ))}
+          {approved && compiled?.data && (
+            <DefinitionChangePanel
+              item={result.data.submission}
+              current={compiled.data}
+              activated={activated?.data ?? null}
+              changes={changes?.data ?? []}
+              loadError={changes?.error ? apiErrorMessage(changes) : ''}
+              fixtureCommandsEnabled={
+                process.env.CCE_ENVIRONMENT === 'test' && compiled.data.artifact.source.is_fixture
+              }
+            />
+          )}
           {approved && compiled?.data && (
             <ActivationPanel
               key={`${activated?.data?.id ?? 'pending'}:${activated?.data?.lifecycle_version ?? 0}`}

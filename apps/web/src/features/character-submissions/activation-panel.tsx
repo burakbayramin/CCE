@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { activateFixture, changeFixtureLifecycle } from '../../app/admin/reviews/actions';
 import type { ActivatedCharacter, CharacterCapacity, LifecycleChange, StoredDefinition, Submission } from '../../lib/contributions';
 import { apiErrorMessage } from '../../lib/api-errors';
-import { Card, Notice } from '../../components/ui';
+import { Card, Mono, Notice } from '../../components/ui';
 
 type Action = 'SUSPEND' | 'ARCHIVE' | 'RESTORE' | 'REACTIVATE';
 
@@ -146,7 +146,20 @@ export function ActivationPanel({ item, definition, activated, capacity, history
           <h3 className="text-sm font-semibold text-ink-900">Lifecycle geçmişi</h3>
           <ol className="mt-2 space-y-2 text-sm text-ink-700">
             {history.slice(0, 10).map((event) => (
-              <li key={event.id}>{event.action}: {event.previous_status} → {event.new_status} · {event.reason}</li>
+              <li key={event.id} className="rounded-lg border border-line bg-paper-sunk/40 px-3 py-2.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <span>
+                    {event.action}: {event.previous_status} → {event.new_status}
+                  </span>
+                  <span className="font-mono text-xs text-ink-500">
+                    v{event.previous_version} → v{event.new_version}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-ink-700">{event.reason}</p>
+                <p className="mt-1 text-xs text-ink-500">
+                  Gerçek aktör: <Mono>{event.actor_user_id}</Mono>
+                </p>
+              </li>
             ))}
           </ol>
         </div>

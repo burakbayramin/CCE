@@ -10,6 +10,8 @@ vi.mock('next/navigation', () => ({
 import { ProposalForm } from './proposal-form';
 import { ReviewPanel } from './review-panel';
 import { DefinitionPanel } from './definition-panel';
+import { DefinitionChangePanel } from './definition-change-panel';
+import { ActivationPanel } from './activation-panel';
 import { ProposalHistory } from './history';
 import type { components } from '../../lib/api/generated/schema';
 
@@ -248,5 +250,126 @@ describe('e2e selector contract — definition and history', () => {
     expect(html).toContain('Revizyon 2 — Yeni Deniz');
     expect(html).toContain('Önce: &quot;Deniz&quot;');
     expect(html).toContain('Sonra: &quot;Yeni Deniz&quot;');
+  });
+});
+
+/**
+ * M3.6 owner surface. The audit trail is the contract here: an adoption or a
+ * lifecycle command must always name the actor that actually performed it,
+ * and a pending adoption must never be silently applied.
+ */
+describe('owner audit contract', () => {
+  const activated: Schema['ActivatedCharacter'] = {
+    id: 'char-1',
+    person_id: 'person-1',
+    submission_id: draft.id,
+    active_definition_id: 'old-definition',
+    status: 'ACTIVE',
+    is_fixture: true,
+    activated_at: '2026-10-01T09:00:00Z',
+    lifecycle_version: 2,
+    updated_at: '2026-10-01T09:30:00Z',
+    suspension_reason: null,
+    archive_reason: null,
+    initial_state: {
+      definition_id: stored.id,
+      bootstrap: stored.artifact.bootstrap,
+      owner_person_id: 'person-owner',
+      owner_relationship_status: 'UNACQUAINTED',
+      owner_experience_count: 0,
+    },
+  };
+
+  const change: Schema['DefinitionChange'] = {
+    id: 'change-1',
+    request_id: 'request-1',
+    character_id: activated.id,
+    actor_user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    previous_definition_id: 'old-definition',
+    definition_id: 'new-definition',
+    previous_version: 1,
+    new_version: 2,
+    reason: 'Onaylı yeni tanımı etkinleştir',
+    recorded_at: '2026-10-01T09:30:00Z',
+  };
+
+  it('names the real actor for every recorded definition change', () => {
+    const html = renderToStaticMarkup(
+      <DefinitionChangePanel
+        item={{ ...draft, status: 'APPROVED' }}
+        current={stored}
+        activated={activated}
+        changes={[change]}
+        loadError=""
+        fixtureCommandsEnabled
+      />,
+    );
+    expect(html).toContain('Yeni tanımı benimse');
+    expect(html).toContain(change.reason);
+    expect(html).toContain(change.actor_user_id);
+    expect(html).toContain('v1 → v2');
+  });
+
+  it('shows no adoption command when the compiled definition is already active', () => {
+    const html = renderToStaticMarkup(
+      <DefinitionChangePanel
+        item={{ ...draft, status: 'APPROVED' }}
+        current={stored}
+        activated={{ ...activated, active_definition_id: stored.id }}
+        changes={[]}
+        loadError=""
+        fixtureCommandsEnabled
+      />,
+    );
+    expect(html).not.toContain('Yeni tanımı benimse');
+    expect(html).toContain('Bu karakter için henüz tanım değişikliği kaydedilmedi.');
+  });
+
+  it('reports a failed audit load instead of rendering an empty trail', () => {
+    const html = renderToStaticMarkup(
+      <DefinitionChangePanel
+        item={{ ...draft, status: 'APPROVED' }}
+        current={stored}
+        activated={activated}
+        changes={[]}
+        loadError="Yetki doğrulanamadı"
+        fixtureCommandsEnabled
+      />,
+    );
+    expect(html).toContain('Denetim izi yüklenemedi');
+    expect(html).toContain('Yetki doğrulanamadı');
+  });
+
+  it('shows the real actor on lifecycle history', () => {
+    const html = renderToStaticMarkup(
+      <ActivationPanel
+        item={{ ...draft, status: 'APPROVED' }}
+        definition={stored}
+        activated={activated}
+        capacity={{ active_limit: 10, active_count: 1 }}
+        history={[
+          {
+            id: 'life-1',
+            request_id: 'life-request-1',
+            character_id: activated.id,
+            actor_user_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            action: 'SUSPEND',
+            previous_status: 'ACTIVE',
+            new_status: 'SUSPENDED',
+            previous_version: 1,
+            new_version: 2,
+            definition_id: stored.id,
+            reason: 'İzolated lifecycle kararı',
+            reviewed_prior_reason: null,
+            recorded_at: '2026-10-01T09:20:00Z',
+          },
+        ]}
+        loadError=""
+        fixtureCommandsEnabled
+      />,
+    );
+    expect(html).toContain('Lifecycle geçmişi');
+    expect(html).toContain('İzolated lifecycle kararı');
+    expect(html).toContain('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
   });
 });

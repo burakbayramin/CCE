@@ -51,6 +51,28 @@ export function IdentityPanel({ identity }: { identity: components['schemas']['I
         )}
       </div>
 
+      {owner && (
+        <Card className="mt-5 px-5 py-5">
+          <h2 className="font-display text-base font-semibold text-ink-900">
+            Kendi karakterini oluştur
+          </h2>
+          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-600">
+            Owner olarak karakter önerebilirsin. <strong>Katılımcıyla aynı yapılandırılmış
+            formu ve aynı doğrulama hattını</strong> kullanırsın; doğrulama, moderasyon
+            taraması veya değiştirilemez revizyon hattında hiçbir adım atlanmaz. Kendi
+            başvurunu onaylarken doğrulama yeniden çalışır ve audit kaydına gerçek aktörün
+            yazılır. <code className="font-mono text-xs">BLOCK</code> sonucu kendi
+            karakterinde de geçerlidir.
+          </p>
+          <Link
+            href="/contributor/drafts/new"
+            className="cce-btn cce-btn-secondary mt-4 no-underline"
+          >
+            Yeni karakter taslağı aç
+          </Link>
+        </Card>
+      )}
+
       <div className="mt-6 space-y-5">
         <Notice tone="neutral" title="Bu sürümde henüz açık olanlar">
           Medya yükleme ve başvuru akışı çalışıyor. Karakter aktivasyonu, sohbet ve dünya
