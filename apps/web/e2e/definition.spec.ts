@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Owner compiles an approved fixture once without activating a character', async ({ page }) => {
+test('Owner compiles and activates an approved fixture once', async ({ page }) => {
   test.skip(!process.env.CCE_E2E_DEFINITION_SUBMISSION, 'Provisioned by isolated Python fixture');
   await page.goto('/login');
   await page.getByLabel('E-posta').fill(process.env.CCE_E2E_OWNER_EMAIL!);
@@ -17,4 +17,14 @@ test('Owner compiles an approved fixture once without activating a character', a
   await page.reload();
   await expect(page.getByText(hash, { exact: true })).toBeVisible();
   await expect(page.getByText('Bu işlem yalnız onaylı kaynağı derler.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Aktif karakter: 0 / 50')).toBeVisible();
+  await page.getByLabel('Aktivasyon gerekçesi').fill('İzole tarayıcı aktivasyon denemesi');
+  await page.getByRole('button', { name: 'Test karakterini aktive et' }).click();
+  await expect(page.getByText('Test karakteri aktif', { exact: true })).toBeVisible();
+  const identity = await page.getByText(/^Karakter kimliği:/).innerText();
+  expect(identity).toMatch(/^Karakter kimliği: [0-9a-f-]{36}$/);
+  await expect(page.getByText('Aktif karakter: 1 / 50')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(identity, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Test karakterini aktive et' })).toHaveCount(0);
 });

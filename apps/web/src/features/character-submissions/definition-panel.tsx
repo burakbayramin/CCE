@@ -67,7 +67,8 @@ export function DefinitionPanel({
           {definition.artifact.source.is_fixture && (
             <div className="mt-4">
               <Notice tone="warning" title="TEST FİKTURE — gerçek aktivasyon izni değildir.">
-                Bu tanım test ortamında üretildi. Aktivasyon kanıtı olarak kullanılamaz.
+                Bu tanım yalnız izole test ortamında aktivasyon denemesi için kullanılabilir.
+                Gerçek içerik moderasyonu yerine geçmez.
               </Notice>
             </div>
           )}

@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { reviewApi, type ReviewDetail, type Submission, type StoredDefinition } from '../../../lib/contributions';
+import { reviewApi, type ActivatedCharacter, type ReviewDetail, type Submission, type StoredDefinition } from '../../../lib/contributions';
 import type { components } from '../../../lib/api/generated/schema';
 
 export async function startReview(id: string, version: number, revisionId: string) {
@@ -33,6 +33,12 @@ export async function compileDefinition(id: string, version: number, revisionId:
   const result = await reviewApi<StoredDefinition>(`/${encodeURIComponent(id)}/definition`, 'POST', {
     expected_version: version, revision_id: revisionId,
   });
+  if (result.data) revalidatePath(`/admin/reviews/${id}`);
+  return result;
+}
+
+export async function activateFixture(id: string, command: components['schemas']['ActivateCharacter']) {
+  const result = await reviewApi<ActivatedCharacter>(`/${encodeURIComponent(id)}/activation`, 'POST', command);
   if (result.data) revalidatePath(`/admin/reviews/${id}`);
   return result;
 }

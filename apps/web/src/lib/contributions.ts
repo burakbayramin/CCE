@@ -9,6 +9,8 @@ export type Proposal = components['schemas']['CharacterProposal'];
 export type SubmissionHistory = components['schemas']['SubmissionHistory'];
 export type ReviewDetail = components['schemas']['ReviewDetail'];
 export type StoredDefinition = components['schemas']['StoredDefinition'];
+export type ActivatedCharacter = components['schemas']['ActivatedCharacter'];
+export type CharacterCapacity = components['schemas']['CharacterCapacity'];
 export type ApiResult<T> =
   | { data: T; error: null; status?: number }
   | { data: null; error: string; status?: number };
