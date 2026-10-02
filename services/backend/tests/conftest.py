@@ -31,6 +31,19 @@ def review_accounts(accounts: tuple[list[dict[str, str]], httpx.Client]):
 
 
 @pytest.fixture
+def activation_accounts(review_accounts):
+    with psycopg.connect(ADMIN_DSN) as db:
+        original = db.execute("select active_limit from ops_private.character_capacity").fetchone()[
+            0
+        ]
+    try:
+        yield review_accounts
+    finally:
+        with psycopg.connect(ADMIN_DSN) as db:
+            db.execute("update ops_private.character_capacity set active_limit=%s", (original,))
+
+
+@pytest.fixture
 def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
     if os.environ.get("CCE_ENVIRONMENT") != "test":
         pytest.fail("Identity integration requires isolated local test fixtures")
@@ -92,6 +105,12 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                         assert removed.status_code == 200
                     db.execute(
                         "delete from ops_private.character_capacity_events where actor_user_id=%s",
+                        (target,),
+                    )
+                    db.execute(
+                        "delete from ops_private.character_lifecycle_events where character_id in "
+                        "(select id from world_private.characters "
+                        "where created_by=%s and is_fixture)",
                         (target,),
                     )
                     db.execute(

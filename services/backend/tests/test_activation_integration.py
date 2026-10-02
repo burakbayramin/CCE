@@ -20,19 +20,6 @@ from cce.modules.identity.repository import actor_transaction
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture
-def activation_accounts(review_accounts):
-    with psycopg.connect(ADMIN_DSN) as db:
-        original = db.execute("select active_limit from ops_private.character_capacity").fetchone()[
-            0
-        ]
-    try:
-        yield review_accounts
-    finally:
-        with psycopg.connect(ADMIN_DSN) as db:
-            db.execute("update ops_private.character_capacity set active_limit=%s", (original,))
-
-
 def prepared(api, owner, contributor):
     item = approve(api, owner, contributor)
     response = api.post(

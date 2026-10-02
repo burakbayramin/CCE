@@ -24,9 +24,9 @@ grant cce_api to postgres;
 grant usage on schema extensions to cce_api;
 set local search_path = public, extensions;
 set local role cce_api;
-select results_eq('select version from ops_private.schema_version', array[6],
+select results_eq('select version from ops_private.schema_version', array[7],
     'runtime API can read readiness marker through RLS');
-select throws_ok('update ops_private.schema_version set version = 7', '42501',
+select throws_ok('update ops_private.schema_version set version = 8', '42501',
     'permission denied for table schema_version', 'runtime API cannot alter marker');
 reset role;
 
