@@ -109,6 +109,10 @@ class ActivatedCharacter(FrozenModel):
     status: Literal["ACTIVE", "SUSPENDED", "ARCHIVED"]
     is_fixture: Literal[True]
     activated_at: datetime
+    lifecycle_version: int = Field(ge=1)
+    updated_at: datetime
+    suspension_reason: str | None
+    archive_reason: str | None
     initial_state: InitialCharacterState
 
 
@@ -131,4 +135,27 @@ class CapacityChange(FrozenModel):
     active_limit: int
     active_count: int
     reason: str
+    recorded_at: datetime
+
+
+class LifecycleCommand(FrozenModel):
+    expected_version: int = Field(ge=1)
+    reason: str = Field(min_length=10, max_length=1000)
+    request_id: UUID
+    reviewed_prior_reason: str | None = Field(default=None, min_length=10, max_length=1000)
+
+
+class LifecycleChange(FrozenModel):
+    id: UUID
+    request_id: UUID
+    character_id: UUID
+    actor_user_id: UUID
+    action: Literal["SUSPEND", "ARCHIVE", "RESTORE", "REACTIVATE"]
+    previous_status: Literal["ACTIVE", "SUSPENDED", "ARCHIVED"]
+    new_status: Literal["ACTIVE", "SUSPENDED", "ARCHIVED"]
+    previous_version: int = Field(ge=1)
+    new_version: int = Field(ge=2)
+    definition_id: UUID
+    reason: str
+    reviewed_prior_reason: str | None
     recorded_at: datetime

@@ -315,6 +315,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reviews/{submission_id}/lifecycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lifecycle History */
+        get: operations["characters_lifecycle_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reviews/{submission_id}/lifecycle/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lifecycle Change */
+        post: operations["characters_lifecycle_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -409,6 +443,17 @@ export interface components {
              * Format: date-time
              */
             activated_at: string;
+            /** Lifecycle Version */
+            lifecycle_version: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Suspension Reason */
+            suspension_reason: string | null;
+            /** Archive Reason */
+            archive_reason: string | null;
             initial_state: components["schemas"]["InitialCharacterState"];
         };
         /** AffectBaseline */
@@ -758,6 +803,76 @@ export interface components {
              * @constant
              */
             owner_experience_count: 0;
+        };
+        /** LifecycleChange */
+        LifecycleChange: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Character Id
+             * Format: uuid
+             */
+            character_id: string;
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "SUSPEND" | "ARCHIVE" | "RESTORE" | "REACTIVATE";
+            /**
+             * Previous Status
+             * @enum {string}
+             */
+            previous_status: "ACTIVE" | "SUSPENDED" | "ARCHIVED";
+            /**
+             * New Status
+             * @enum {string}
+             */
+            new_status: "ACTIVE" | "SUSPENDED" | "ARCHIVED";
+            /** Previous Version */
+            previous_version: number;
+            /** New Version */
+            new_version: number;
+            /**
+             * Definition Id
+             * Format: uuid
+             */
+            definition_id: string;
+            /** Reason */
+            reason: string;
+            /** Reviewed Prior Reason */
+            reviewed_prior_reason: string | null;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+        };
+        /** LifecycleCommand */
+        LifecycleCommand: {
+            /** Expected Version */
+            expected_version: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /** Reviewed Prior Reason */
+            reviewed_prior_reason?: string | null;
         };
         /** ModerationAttempt */
         ModerationAttempt: {
@@ -2766,6 +2881,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivatedCharacter"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+        };
+    };
+    characters_lifecycle_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleChange"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionProblem"];
+                };
+            };
+        };
+    };
+    characters_lifecycle_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                action: "SUSPEND" | "ARCHIVE" | "RESTORE" | "REACTIVATE";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifecycleCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleChange"];
                 };
             };
             /** @description Unauthorized */

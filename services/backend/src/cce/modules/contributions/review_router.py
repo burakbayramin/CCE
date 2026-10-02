@@ -12,6 +12,11 @@ from cce.modules.characters.activation import (
     read_activation,
     read_capacity,
 )
+from cce.modules.characters.lifecycle import (
+    LifecycleAction,
+    apply_lifecycle,
+    read_lifecycle_history,
+)
 from cce.modules.characters.repository import prepare_definition, read_definition
 from cce.modules.characters.schemas import (
     ActivateCharacter,
@@ -20,6 +25,8 @@ from cce.modules.characters.schemas import (
     ChangeCharacterCapacity,
     CharacterCapacity,
     CompileDefinition,
+    LifecycleChange,
+    LifecycleCommand,
     StoredDefinition,
 )
 from cce.modules.contributions.moderation import ModerationProvider
@@ -194,5 +201,29 @@ def review_router(
         connection: Annotated[Connection, Depends(transaction, scope="function")],
     ) -> ActivatedCharacter:
         return activate_fixture(connection, submission_id, payload, test_mode=test_mode)
+
+    @router.get(
+        "/{submission_id}/lifecycle",
+        response_model=list[LifecycleChange],
+        operation_id="characters_lifecycle_history",
+    )
+    def lifecycle_history(
+        submission_id: UUID,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> list[LifecycleChange]:
+        return read_lifecycle_history(connection, submission_id)
+
+    @router.post(
+        "/{submission_id}/lifecycle/{action}",
+        response_model=LifecycleChange,
+        operation_id="characters_lifecycle_change",
+    )
+    def lifecycle_change(
+        submission_id: UUID,
+        action: LifecycleAction,
+        payload: LifecycleCommand,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> LifecycleChange:
+        return apply_lifecycle(connection, submission_id, action, payload, test_mode=test_mode)
 
     return router
