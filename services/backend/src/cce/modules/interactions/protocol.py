@@ -20,6 +20,8 @@ no state of its own, so the fencing rules cannot be bypassed by importing
 around them.
 """
 
+import json
+import logging
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
@@ -35,6 +37,42 @@ EffectKind = Literal["MEMORY", "AFFECT", "RELATIONSHIP", "GOAL", "TRANSCRIPT"]
 MINIMUM_REASON = 10
 MAXIMUM_REASON = 1000
 DEFAULT_LEASE_SECONDS = 300
+
+logger = logging.getLogger(__name__)
+
+# Every distinct refusal the protocol can produce, in the wording the database
+# uses. Each maps to the one message a caller should see: "retry", "wait for an
+# operator" and "this input is wrong" are three different operational
+# situations and must not collapse into one.
+_FAILURES: tuple[tuple[str, int, str], ...] = (
+    (
+        "Stale reservation requires operator resolution",
+        409,
+        "Kiralama süresi doldu ve bir operatör kararı bekliyor",
+    ),
+    (
+        # fence_interaction and resolve_interaction word this differently.
+        "Lease generation is stale",
+        409,
+        "Kiralama nesli değişti; yeniden denemelisin",
+    ),
+    (
+        "Reservation generation is stale",
+        409,
+        "Rezervasyon nesli değişti; yeniden denemelisin",
+    ),
+    ("Lease belongs to another worker", 409, "Kiralama başka bir worker'a ait"),
+    ("Lease expired", 409, "Kiralama artık geçerli değil"),
+    ("Character is reserved", 409, "Karakter şu anda başka bir etkileşimde"),
+    ("Reservation is not held", 409, "Rezervasyon artık tutulmuyor"),
+    ("Reservation is no longer held", 409, "Rezervasyon artık tutulmuyor"),
+    ("Unknown job run", 404, "İş kaydı bulunamadı"),
+    ("Resolution reason must be", 422, "Gerekçe 10-1000 karakter olmalı"),
+    ("Unknown quarantine reason", 422, "Bilinmeyen quarantine gerekçesi"),
+    ("Unknown interaction purpose", 422, "Bilinmeyen etkileşim amacı"),
+    ("Effect requires identity and kind", 422, "Etki kimliği ve türü eksik"),
+    ("Unknown effect kind", 422, "Etki kaydı geçersiz"),
+)
 
 
 @dataclass(frozen=True)
@@ -77,20 +115,16 @@ def _map(error: DBAPIError) -> ContributionError:
 
     The distinction between "the lease is stale" and "the effect is malformed"
     is the difference between a retry and an operator intervention.
+
+    Matching is by exact substring rather than by scanning for a word: four
+    distinct lease failures used to collapse into one message, which made the
+    real reason unrecoverable from the outside.
     """
     message = str(getattr(error, "orig", error))
-    if "reservation" in message and "reserved" in message:
-        return ContributionError(409, "Karakter şu anda başka bir etkileşimde")
-    if "generation is stale" in message or "Reservation generation is stale" in message:
-        return ContributionError(409, "Kiralama süresi dolmuş; yeniden denemelisin")
-    if "Lease" in message or "lease" in message:
-        return ContributionError(409, "Kiralama artık geçerli değil")
-    if "not held" in message:
-        return ContributionError(409, "Rezervasyon artık tutulmuyor")
-    if "reason" in message:
-        return ContributionError(422, "Gerekçe 10-1000 karakter olmalı")
-    if "Effect" in message or "effect_kind" in message:
-        return ContributionError(422, "Etki kaydı geçersiz")
+    logger.warning("cce:interaction-protocol error=%s", message)
+    for needle, status, detail in _FAILURES:
+        if needle in message:
+            return ContributionError(status, detail)
     return ContributionError(503, "İş protokolü kaydı tamamlanamadı")
 
 
@@ -196,14 +230,16 @@ def commit_result(
             connection.execute(
                 text(
                     "select * from ops_private.commit_interaction_result("
-                    ":run,:generation,:holder,:identity,:effects)"
+                    ":run,:generation,:holder,:identity,cast(:effects as jsonb))"
                 ),
                 {
                     "run": run.id,
                     "generation": reservation.ownership_generation,
                     "holder": holder,
                     "identity": effect_identity,
-                    "effects": effects,
+                    # A list of effect objects has no psycopg adapter, so it is
+                    # serialised here rather than left to fail at the driver.
+                    "effects": json.dumps(effects),
                 },
             )
             .mappings()
