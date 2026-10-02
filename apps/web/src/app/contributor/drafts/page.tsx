@@ -37,14 +37,13 @@ export default async function Drafts() {
 
       {drafts.length === 0 && !result.error ? (
         <div className="mt-2">
+          {/* No call to action here on purpose: the page header already offers
+              "Yeni taslak", and a second link with the same accessible name
+              makes that control ambiguous. */}
           <EmptyState
             title="Henüz taslağın yok"
-            description="İlk karakter önerini yaz. Metni kaydedebilir, avatar yükleyebilir ve hazır olduğunda incelemeye gönderebilirsin."
-          >
-            <Link href="/contributor/drafts/new" className="cce-btn cce-btn-primary no-underline">
-              Yeni taslak
-            </Link>
-          </EmptyState>
+            description="İlk karakter önerini yaz. Yukarıdaki düğmeden başlayabilirsin; metni kaydedebilir, avatar yükleyebilir ve hazır olduğunda incelemeye gönderebilirsin."
+          />
         </div>
       ) : (
         <ul className="mt-2 space-y-3">
