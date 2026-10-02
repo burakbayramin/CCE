@@ -21,8 +21,10 @@ begin;
 
 set local role cce_migrator;
 
-create schema if not exists ops_private;
-revoke all on schema ops_private from public, anon, authenticated, service_role;
+-- ops_private is created by the foundation migration and stays revoked from
+-- anon/authenticated/service_role there. It is deliberately not recreated or
+-- re-revoked here: schema creation is a database-level privilege that
+-- cce_migrator does not hold, and `if not exists` still checks it.
 
 -- ---------------------------------------------------------------------------
 -- Interaction reservations: one live interaction per character.

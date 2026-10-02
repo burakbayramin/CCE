@@ -15,9 +15,16 @@
 
 begin;
 
+-- The extension is created by the migration runner, before the role switch:
+-- CREATE EXTENSION needs rights cce_migrator does not hold, and
+-- `if not exists` still checks them. This is what Supabase Queues speaks.
+create extension if not exists pgmq;
+
 set local role cce_migrator;
 
-create extension if not exists pgmq;
+-- The queue itself is created by the CLI/runtime, not here: a migration must
+-- not leave an empty queue behind, and `pgmq.create` is idempotent but
+-- not transactional with the rest of this file on older images.
 
 -- ---------------------------------------------------------------------------
 -- Worker registry. Presence is observed, never assumed: the operations UI needs
