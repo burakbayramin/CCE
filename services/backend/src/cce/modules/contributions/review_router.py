@@ -6,8 +6,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
+from cce.modules.characters.activation import (
+    activate_fixture,
+    change_capacity,
+    read_activation,
+    read_capacity,
+)
 from cce.modules.characters.repository import prepare_definition, read_definition
-from cce.modules.characters.schemas import CompileDefinition, StoredDefinition
+from cce.modules.characters.schemas import (
+    ActivateCharacter,
+    ActivatedCharacter,
+    CapacityChange,
+    ChangeCharacterCapacity,
+    CharacterCapacity,
+    CompileDefinition,
+    StoredDefinition,
+)
 from cce.modules.contributions.moderation import ModerationProvider
 from cce.modules.contributions.repository import ContributionError
 from cce.modules.contributions.review import decide, read_review, retry_moderation, start_review
@@ -59,6 +73,23 @@ def review_router(
             raise HTTPException(error.status, error.detail) from None
         except SQLAlchemyError:
             raise HTTPException(503, "Review service unavailable") from None
+
+    @router.get(
+        "/capacity", response_model=CharacterCapacity, operation_id="characters_capacity_get"
+    )
+    def capacity(
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> CharacterCapacity:
+        return read_capacity(connection)
+
+    @router.post(
+        "/capacity", response_model=CapacityChange, operation_id="characters_capacity_change"
+    )
+    def set_capacity(
+        payload: ChangeCharacterCapacity,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> CapacityChange:
+        return change_capacity(connection, payload)
 
     @router.get("", response_model=list[Submission], operation_id="reviews_list")
     def list_queue(
@@ -139,5 +170,29 @@ def review_router(
         connection: Annotated[Connection, Depends(transaction, scope="function")],
     ) -> StoredDefinition:
         return prepare_definition(connection, actor, submission_id, payload, test_mode=test_mode)
+
+    @router.get(
+        "/{submission_id}/activation",
+        response_model=ActivatedCharacter | None,
+        operation_id="characters_activation_get",
+    )
+    def activation(
+        submission_id: UUID,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> ActivatedCharacter | None:
+        read_review(connection, submission_id)
+        return read_activation(connection, submission_id)
+
+    @router.post(
+        "/{submission_id}/activation",
+        response_model=ActivatedCharacter,
+        operation_id="characters_activate_fixture",
+    )
+    def activate(
+        submission_id: UUID,
+        payload: ActivateCharacter,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> ActivatedCharacter:
+        return activate_fixture(connection, submission_id, payload, test_mode=test_mode)
 
     return router

@@ -85,3 +85,50 @@ class StoredDefinition(FrozenModel):
 
 class CompileDefinition(StartReview):
     """Client supplies only the expected source, never derived state or prompt text."""
+
+
+class ActivateCharacter(StartReview):
+    definition_id: UUID
+    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reason: str = Field(min_length=10, max_length=1000)
+
+
+class InitialCharacterState(FrozenModel):
+    definition_id: UUID
+    bootstrap: BootstrapCandidates
+    owner_person_id: UUID
+    owner_relationship_status: Literal["UNACQUAINTED"]
+    owner_experience_count: Literal[0]
+
+
+class ActivatedCharacter(FrozenModel):
+    id: UUID
+    person_id: UUID
+    submission_id: UUID
+    active_definition_id: UUID
+    status: Literal["ACTIVE", "SUSPENDED", "ARCHIVED"]
+    is_fixture: Literal[True]
+    activated_at: datetime
+    initial_state: InitialCharacterState
+
+
+class CharacterCapacity(FrozenModel):
+    active_limit: int = Field(ge=0, le=50)
+    active_count: int = Field(ge=0)
+
+
+class ChangeCharacterCapacity(FrozenModel):
+    expected_limit: int = Field(ge=0, le=50)
+    active_limit: int = Field(ge=0, le=50)
+    reason: str = Field(min_length=10, max_length=1000)
+    request_id: UUID
+
+
+class CapacityChange(FrozenModel):
+    id: UUID
+    request_id: UUID
+    previous_limit: int
+    active_limit: int
+    active_count: int
+    reason: str
+    recorded_at: datetime
