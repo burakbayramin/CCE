@@ -1,3 +1,4 @@
+import json
 import sys
 from types import ModuleType
 from uuid import uuid4
@@ -141,3 +142,26 @@ def test_worker_startup_rejects_bad_auth_before_loading_scanner_or_claiming(monk
     with pytest.raises(AvatarUnavailable):
         moderation_service.main()
     assert calls == ["reader", "verify", "dispose"]
+
+
+def test_worker_cli_reports_failure_without_traceback_or_private_details(monkeypatch, capsys):
+    def fail():
+        raise RuntimeError("private DSN password token scanner input")
+
+    monkeypatch.setattr(moderation_service, "main", fail)
+    with pytest.raises(SystemExit) as stopped:
+        moderation_service.cli()
+    assert stopped.value.code == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert json.loads(output.err) == {
+        "event": "moderation_worker_failed",
+        "exception_type": "RuntimeError",
+    }
+    assert "private" not in output.err and "Traceback" not in output.err
+
+
+def test_worker_cli_returns_normally_after_clean_stop(monkeypatch, capsys):
+    monkeypatch.setattr(moderation_service, "main", lambda: None)
+    moderation_service.cli()
+    assert capsys.readouterr() == ("", "")

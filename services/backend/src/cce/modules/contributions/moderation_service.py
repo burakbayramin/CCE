@@ -5,7 +5,9 @@ credentials. Operators must configure a reviewed local scanner factory before
 pending submissions can be consumed.
 """
 
+import json
 import signal
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from importlib import import_module
@@ -179,3 +181,17 @@ def main() -> None:
             scanner.close()
         finally:
             engine.dispose()
+
+
+def cli() -> None:
+    """Supervisor exit contract: nonzero status, never a private traceback."""
+    try:
+        main()
+    except Exception as error:
+        print(
+            json.dumps(
+                {"event": "moderation_worker_failed", "exception_type": type(error).__name__}
+            ),
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from None

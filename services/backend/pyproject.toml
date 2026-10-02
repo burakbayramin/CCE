@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-cce-moderation-worker = "cce.modules.contributions.moderation_service:main"
+cce-moderation-worker = "cce.modules.contributions.moderation_service:cli"
 
 [dependency-groups]
 dev = ["httpx>=0.28,<1", "pytest>=8,<10", "ruff>=0.9,<1", "mypy>=1.15,<2"]
