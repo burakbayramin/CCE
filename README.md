@@ -313,6 +313,8 @@ $env:CCE_MODERATION_AUTH_USER_ID              = "<worker hesabı UUID>"
 $env:CCE_MODERATION_AUTH_EMAIL                = "<worker@…>"
 $env:CCE_MODERATION_AUTH_PASSWORD             = "<güçlü parola>"
 $env:CCE_MODERATION_SCANNER_FACTORY           = "paket.modul:fabrika"
+$env:CCE_MODERATION_STARTUP_SECONDS           = "120"
+$env:CCE_MODERATION_TIMEOUT_SECONDS           = "120"
 uv run --project services/backend cce-moderation-worker
 ```
 
@@ -320,6 +322,11 @@ Son değer, private avatar okuyucusunu parametre olarak alan bir **scanner fabri
 Repo henüz gerçek scanner fabrikası sunmaz; CLI Compose ile otomatik başlatılmaz.
 Yapılandırılmamış scanner iş kuyruğunu tüketmez — **test fixture'larını gerçek içerik
 için scanner olarak yapılandırmayın.**
+
+Scanner ayrı, sıcak tutulan bir `spawn` process'inde çalışır. Hazır olmadan iş alınmaz;
+tarama timeout'u child'ı sonlandırır ve denemeyi `MODEL_TIMEOUT` yapar. Tarama sınırı
+en fazla 240 saniyedir (lease 300 saniye). Yeni process sonraki claim'den önce hazırlanır;
+hatalı işin retry'ı yine Owner kararıdır. [İşletim ve açık runtime sınırları](docs/MODERATION_WORKER_RUNBOOK.md).
 
 ### Worker Auth hesabı
 
@@ -339,7 +346,8 @@ doğrulama başarısızsa scanner yüklenmez ve kuyruktan iş alınmaz.
 
 > [!IMPORTANT]
 > Bu Storage sınırı için izole veritabanı ve gerçek Auth/Storage entegrasyon testi GitHub
-> CI'da geçti. Yerel metin/görsel model, model timeout sınırı ve hedef makine kabulü açıktır;
+> CI'da ve izole yerel yığında geçti. Process timeout sınırı uygulandı; gerçek metin/görsel
+> model, dış runtime cancellation, servis kurulumu ve hedef makine kabulü açıktır;
 > bunlar bitmeden moderasyon sonucu **gerçek onay veya aktivasyon kanıtı değildir**.
 
 ---
