@@ -77,10 +77,12 @@ Mimari kararlar **kabul edilmiş**, uygulama **M3.2'de sürüyor**.
 | **M3.1** — Definition | Onaylı başvurudan değiştirilemez karakter tanımı derleme | ✅ Tamamlandı |
 | **M3.2** — Moderasyon kapısı | Kalıcı iş kuyruğu, deneme/lease protokolü, worker döngüsü, Owner bekleme/retry görünümü | 🟡 Kuyruk + protokol bitti |
 | **M3.2** — Gerçek tarayıcı | Yerel metin/görsel model adapter'ları, model kabulü | ⏳ Beklemede — bilinçli olarak ertelendi |
-| **M3.3** — Aktivasyon temeli | İzole test fixture'ı için atomik kimlik/başlangıç kaydı, kapasite ve Owner görünümü | 🟡 Test fixture'larıyla uygulandı; gerçek içerik kapalı |
-| **M3.4** — Lifecycle | Askı, arşiv, aynı kimlikle restore, yeniden aktivasyon ve audit | 🟡 Test fixture'larıyla uygulandı; gerçek içerik kapalı |
-| **M3.5–M3.6** | Definition değişikliği, correction ve kapsamlı admin görünümü | ⏳ Başlanmadı |
-| **M4** | İş altyapısı, private admin chat, gerçek model sınırı | ⏳ |
+| **M3.3** — Aktivasyon temeli | İzole test fixture'ı için atomik kimlik/başlangıç kaydı, kapasite ve Owner görünümü | ✅ Tamamlandı — yalnız fixture |
+| **M3.4** — Lifecycle | Askı, arşiv, aynı kimlikle restore, yeniden aktivasyon ve audit | ✅ Tamamlandı — yalnız fixture |
+| **M3.5** — Definition değişikliği | Denetimli benimseme, çekirdek kilitleri, geçmiş koruması | ✅ Tamamlandı — yalnız fixture |
+| **M3.6** — Yönetim görünümü | Owner kendi karakterini aynı hatta oluşturur; audit gerçek aktörü gösterir | ✅ Tamamlandı — yalnız fixture |
+| **M4.1** — Ortak iş protokolü | Kalıcı etkileşim rezervasyonu, fence'li lease, model-bağımsız etki kimliği, outbox | 🟡 Uygulandı, migration doğrulaması bekliyor |
+| **M4.2–M4.7** | Kuyruk/worker, model sınırı, işleyici hattı, kabul-teslim, stream, operasyon UI | ⏳ |
 | **M5** | Dünya saati, presence, iki karakterli scene | ⏳ |
 | **M6** | Bilişsel state: yetkili retrieval, memory, relationship, reflection | ⏳ |
 | **M7–M8** | Public yayın, World Viewer, staging kabulü | ⏳ |
@@ -89,8 +91,10 @@ Mimari kararlar **kabul edilmiş**, uygulama **M3.2'de sürüyor**.
 > **Bu dilim canlı karakter oluşturmaz ve gerçek otomatik moderasyon yapılandırmamıştır.**
 > `PASS` / `REVIEW` / `BLOCK` sağlayıcı fixture'ları yalnız test uygulamasına enjekte edilir
 > ve UI'da etiketlenir. `BLOCK` ve `ERROR` override edilemez; `REVIEW` için açık olumlu karar gerekir.
-> Kesin model seçimi, runtime ve lisans kararı kabul aşamasına ertelenmiştir; haricî moderasyon
-> API'si veya cloud fallback **kullanılmayacaktır**. Contributor'ların public açılışı için hazır değildir.
+> Aktivasyon, lifecycle ve definition benisleme komutları da aynı nedenle yalnız izole test
+> politikasında çalışır; gerçek içerik için komut yolu yoktur. Kesin model seçimi, runtime ve
+> lisans kararı kabul aşamasına ertelenmiştir; haricî moderasyon API'si veya cloud fallback
+> **kullanılmayacaktır**. Contributor'ların public açılışı için hazır değildir.
 
 Detaylı ve güncel iş kaydı → [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 
@@ -556,7 +560,12 @@ ait DB tüketicileri durdurulur. WSL-only Docker'da `docker` komutlarına da
 - Frontend lint / typecheck / test / production build
 - OpenAPI drift kontrolü ve iki container build'i
 - Boş lokal Supabase üzerinde migration, pgTAP ve **gerçek rol** testleri
+- Gerçek veritabanı + Auth entegrasyon testleri, Playwright smoke ve web → API → DB testi
 - İzole moderasyon Auth/Storage entegrasyonu
+
+Başarısız adımların ayrıntısı GitHub **check annotation** olarak yayınlanır; ham log
+sayfası oturum ister, annotation'lar istemez. Migration ve entegrasyon hataları bu
+yüzden giriş yapmadan okunabilir.
 
 Workflow **production deploy yapmaz**. Tamamlanma ve kalan işler
 [implementation plan](IMPLEMENTATION_PLAN.md) ilerleme kaydında tutulur.
@@ -569,6 +578,10 @@ Workflow **production deploy yapmaz**. Tamamlanma ve kalan işler
 | :-- | :-- |
 | [WORLD_ARCHITECTURE_DECISIONS.md](WORLD_ARCHITECTURE_DECISIONS.md) | Ürün davranışının source of truth'u; WADR-001…014 |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Aşamalar, kabul kanıtları, açık işler |
+| [M1 raporu](docs/M1_FOUNDATION_REPORT.md) | Foundation: zemin, roller, kanıt ve ne demek değil |
+| [M2 raporu](docs/M2_IDENTITY_AND_CONTRIBUTIONS_REPORT.md) | Kimlik, katkı ve inceleme hattı |
+| [Adversarial inceleme](docs/ADVERSARIAL_REVIEW_2026-10-01.md) | Karşıdan güvenlik taraması; çürütülen iddialar işaretli |
+| [M3.5–M3.6 sürüm notu](docs/RELEASE_NOTES_2026-10-02_M3_5.md) | Definition benisleme, Owner görünümü, uzlaştırma kararı |
 | [AGENTS.md](AGENTS.md) | Ajan çalışma kuralları ve repo bağlamı (`graft`) |
 
 ### Teknik dayanaklar
