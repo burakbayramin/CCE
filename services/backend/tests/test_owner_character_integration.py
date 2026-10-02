@@ -109,7 +109,9 @@ def test_restore_and_reactivate_do_not_resurrect_finished_work(activation_accoun
         )
 
         settled = moderation_job_count(item["id"])
-        assert settled >= 1, "activation ran through the moderation line"
+        # start_review writes the fixture verdict inline rather than queueing a
+        # job, so the baseline is zero. What matters is that it never moves.
+        assert settled == 0, "the inline fixture provider must not create a moderation job"
 
         def lifecycle(action, version, prior=None):
             response = api.post(
@@ -125,6 +127,15 @@ def test_restore_and_reactivate_do_not_resurrect_finished_work(activation_accoun
             assert response.status_code == 200, response.text
             return response.json()
 
+        def verdict_count():
+            with psycopg.connect(ADMIN_DSN) as db:
+                return db.execute(
+                    "select count(*) from ops_private.submission_moderation where revision_id=%s",
+                    (item["revision_id"],),
+                ).fetchone()[0]
+
+        assert verdict_count() == 1
+
         suspended = lifecycle("SUSPEND", 1)
         assert moderation_job_count(item["id"]) == settled
         archived = lifecycle("ARCHIVE", suspended["new_version"])
@@ -135,12 +146,7 @@ def test_restore_and_reactivate_do_not_resurrect_finished_work(activation_accoun
         reactivated = lifecycle("REACTIVATE", restored["new_version"], restored["reason"])
         assert reactivated["new_status"] == "ACTIVE"
 
-        # Restore and reactivation are pure transitions: the job ledger and the
-        # single immutable verdict for the revision are both untouched.
+        # Restore and reactivation are pure transitions: no job was queued and
+        # the single immutable verdict for the revision is still the only one.
         assert moderation_job_count(item["id"]) == settled
-        with psycopg.connect(ADMIN_DSN) as db:
-            verdicts = db.execute(
-                "select count(*) from ops_private.submission_moderation where revision_id=%s",
-                (item["revision_id"],),
-            ).fetchone()[0]
-        assert verdicts == 1, "restore must not create a second moderation verdict"
+        assert verdict_count() == 1, "restore must not create a second moderation verdict"
