@@ -318,8 +318,11 @@ $env:CCE_MODERATION_TIMEOUT_SECONDS           = "120"
 uv run --project services/backend cce-moderation-worker
 ```
 
-Son değer, private avatar okuyucusunu parametre olarak alan bir **scanner fabrikasıdır**.
-Repo henüz gerçek scanner fabrikası sunmaz; CLI Compose ile otomatik başlatılmaz.
+`CCE_MODERATION_SCANNER_FACTORY`, private avatar okuyucusunu alan bir **scanner fabrikasıdır**.
+Repo henüz gerçek scanner fabrikası sunmaz. Compose'taki `moderation-worker` profili
+isteğe bağlıdır; normal `docker compose up` worker'ı başlatmaz. Yalnız worker'a ait
+[ortam şablonu](.env.moderation.example) ve [servis işletim adımları](docs/MODERATION_WORKER_RUNBOOK.md)
+hazırdır; gerçek adapter imajı/model kabulü olmadan profili etkinleştirmeyin.
 Yapılandırılmamış scanner iş kuyruğunu tüketmez — **test fixture'larını gerçek içerik
 için scanner olarak yapılandırmayın.**
 

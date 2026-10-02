@@ -62,9 +62,58 @@ iptal ettiğini kanıtlamaz: cancellation ve kaynak serbest bırakma hedef runti
 ayrıca doğrulanmadan gerçek scanner kabul edilemez. Bu dilimde model indirilmedi,
 dış model sunucusu başlatılmadı ve OS servisi kurulmadı.
 
-İşletim sistemi servisinin restart/backoff ve secret yönetimi gerçek scanner
-seçildikten sonra yapılandırılacak. Birden fazla worker'ın ortak GPU kapasite
+Opt-in Compose profilinin restart ve minimum yetki sınırları aşağıda hazırlanmıştır;
+gerçek scanner, production secret yönetimi ve işletim sistemi servis kurulumu hâlâ
+kabul aşamasındadır. Birden fazla worker'ın ortak GPU kapasite
 koordinasyonu M4'ün protokolüdür; bu tek-worker sınırı dünya çapında semaphore değildir.
+
+## Opt-in container profili
+
+`compose.yaml` içindeki `moderation-worker` servisi yalnız aynı adlı profilde yer alır.
+Varsayılan `docker compose up` yalnız API/web'i çalıştırır. Worker'ı adıyla hedeflemek
+profili otomatik etkinleştirebilir; bu nedenle yanlışlıkla `up moderation-worker`
+kullanmayın. [Docker Compose profil davranışı](https://docs.docker.com/compose/how-tos/profiles/).
+
+Servis root olmayan mevcut backend imajını kullanır; port yayınlamaz, API/web'e
+`depends_on` bağı yoktur. `init`, salt-okunur kök filesystem, 64 MiB `/tmp` tmpfs,
+`cap_drop: ALL`, `no-new-privileges`, 256 PID sınırı, `on-failure:3`, 30 saniyelik
+stop grace ve boyutu sınırlı log politikası hazırdır. GPU, model dosyası, model cache
+ve dış runtime henüz verilmez; bunlar seçilmiş adapter'ın kabul kapısıdır.
+
+1. `.env.moderation.example` dosyasından git-ignored `.env.moderation` oluşturun.
+   Yalnız ayrı worker DB/Auth kimliğini ve publishable key'i doldurun. `CHANGE_ME`
+   değerleri gerçek yapılandırma değildir. Local host DB/Storage adresi container
+   içinden `host.docker.internal` olmalı; staging/production Storage HTTPS ister.
+2. Docker'ın çalıştığı host'ta (bu geliştirme bilgisayarında WSL) repo kökünden
+   `docker compose --env-file .env.moderation --profile moderation-worker config --quiet`
+   çalıştırın. Normal `config` ve `docker inspect` çıktısı secret içerebilir; paylaşmayın.
+   Interpolation dosyasındaki tüm değişkenler container'a aktarılmaz: worker environment
+   yalnız açık allowlist'tir, API/engine DSN veya servis anahtarı eklenmez.
+3. Gerçek scanner seçilene kadar burada durun. Base backend imajı gerçek fabrika
+   içermez. Sonrasında gözden geçirilmiş scanner'ı içeren, aynı worker CLI'ına sahip
+   adapter imajını ayrı local override'da belirtin; model/driver/GPU/cache ve dış
+   runtime cancellation kabulünü ayrıca tamamlayın. İmajı kabul olmadan fixture ile
+   “çalışır” göstermeyin.
+
+Kabul sonrası örnek local override (`.artifacts/moderation-image.compose.yaml`):
+
+```yaml
+services:
+  moderation-worker:
+    image: YOUR_REVIEWED_SCANNER_IMAGE:PINNED_VERSION
+```
+
+Yalnız bu adımlar tamamlandıktan sonra hedef servisi başlatın:
+
+```sh
+docker compose -f compose.yaml -f .artifacts/moderation-image.compose.yaml --env-file .env.moderation --profile moderation-worker up -d --no-deps --no-build moderation-worker
+```
+
+Worker'ı durdurmak için aynı dosya/ortam önekleriyle `stop moderation-worker` kullanın.
+Genel `down` API/web'i de etkileyebilir. Container'ın `Up` olması moderasyon readiness
+veya GPU/model kabul kanıtı değildir; geçerli job/attempt ve gerçek scanner sonucu izlenir.
+CLI hatası exit `1` + `moderation_worker_failed` / exception sınıfı üretir; traceback,
+DSN/token veya ham model içeriği yayınlanmaz. Clean stop hata logu üretmez.
 
 ## Doğrulama
 
@@ -76,6 +125,14 @@ ve stop davranışını sınar. Bunlar DB gerektirmeyen testlerdir.
 yalnız izole Supabase yığınında gerçek job/attempt kaydıyla timeout → ERROR →
 Owner retry → yeni deneme sonucunu ve onay kapısının kapalı kalmasını sınar.
 İki test grubu da sentetik scanner kullanır; gerçek model kalitesinin kanıtı değildir.
+
+`scripts/check_moderation_container.py --image cce-api:test`, Docker host'unda
+yalnız standard-library Python ile çalışır. Varsayılan profilin worker'ı dışarıda
+tuttuğunu, resolved environment allowlist'ini ve servis hardening ayarlarını kontrol
+eder. Production backend imajında ağsız/salt-okunur geçici container'la yanlış
+yapılandırmanın sanitize edilmiş hata çıkışını ve Linux spawn/reuse/timeout/yeni nesli
+sınar. Gerçek Auth/DB/model kullanmaz. Foundation CI `containers` job'ına eklenmiştir;
+yerel başarı yeni GitHub CI koşusu yerine geçmez.
 
 Dayanak: [Python 3.13 multiprocessing](https://docs.python.org/3.13/library/multiprocessing.html)
 (spawn, process sonlandırma ve pipe ömrü),
