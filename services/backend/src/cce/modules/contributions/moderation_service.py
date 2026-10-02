@@ -6,6 +6,8 @@ pending submissions can be consumed.
 """
 
 import signal
+from collections.abc import Iterator
+from contextlib import contextmanager
 from importlib import import_module
 from threading import Event
 from types import FrameType
@@ -20,6 +22,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
 from cce.modules.contributions.moderation_avatar import ModerationAvatarReader
+from cce.modules.contributions.moderation_process import ProcessLocalScanner
 from cce.modules.contributions.moderation_worker import (
     LocalScanner,
     UnconfiguredLocalScanner,
@@ -43,6 +46,8 @@ class WorkerSettings(BaseSettings):
         pattern=r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*:[A-Za-z_]\w*$"
     )
     moderation_idle_seconds: float = Field(default=2.0, gt=0, le=60)
+    moderation_startup_seconds: float = Field(default=120.0, gt=0, le=600, allow_inf_nan=False)
+    moderation_timeout_seconds: float = Field(default=120.0, gt=0, le=240, allow_inf_nan=False)
 
     @field_validator("worker_database_url")
     @classmethod
@@ -115,6 +120,25 @@ def create_worker_engine(settings: WorkerSettings) -> Engine:
     )
 
 
+@contextmanager
+def scanner_context(settings: WorkerSettings) -> Iterator[LocalScanner]:
+    """Create process-local DB resources; never pass a pooled Engine to spawn."""
+    engine = create_worker_engine(settings)
+    try:
+        reader = ModerationAvatarReader(
+            engine,
+            storage_url=settings.storage_url,
+            publishable_key=settings.supabase_publishable_key,
+            auth_user_id=settings.moderation_auth_user_id,
+            auth_email=settings.moderation_auth_email,
+            auth_password=settings.moderation_auth_password,
+        )
+        reader.verify_identity()
+        yield load_scanner(settings.moderation_scanner_factory, reader)
+    finally:
+        engine.dispose()
+
+
 def main() -> None:
     settings = WorkerSettings()
     stop = Event()
@@ -125,6 +149,13 @@ def main() -> None:
     signal.signal(signal.SIGINT, request_stop)
     signal.signal(signal.SIGTERM, request_stop)
     engine = create_worker_engine(settings)
+    scanner = ProcessLocalScanner(
+        scanner_context,
+        (settings,),
+        startup_seconds=settings.moderation_startup_seconds,
+        timeout_seconds=settings.moderation_timeout_seconds,
+        stop=stop,
+    )
     try:
         avatar_reader = ModerationAvatarReader(
             engine,
@@ -135,13 +166,16 @@ def main() -> None:
             auth_password=settings.moderation_auth_password,
         )
         avatar_reader.verify_identity()
-        scanner = load_scanner(settings.moderation_scanner_factory, avatar_reader)
         run_loop(
             engine,
             scanner,
             stop,
             auth_worker_user_id=settings.moderation_auth_user_id,
             idle_seconds=settings.moderation_idle_seconds,
+            before_claim=scanner.prepare,
         )
     finally:
-        engine.dispose()
+        try:
+            scanner.close()
+        finally:
+            engine.dispose()

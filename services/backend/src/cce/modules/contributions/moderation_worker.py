@@ -5,6 +5,7 @@ image implementation must be supplied before real content can pass. The existing
 request-path ModerationProvider is test-only and cannot be used here.
 """
 
+from collections.abc import Callable
 from threading import Event
 from typing import Literal, Protocol
 from uuid import UUID
@@ -156,6 +157,7 @@ def run_loop(
     *,
     auth_worker_user_id: UUID | None = None,
     idle_seconds: float = 2.0,
+    before_claim: Callable[[], None] | None = None,
 ) -> None:
     """Poll until stopped; never turn a database failure into a scan verdict.
 
@@ -168,5 +170,9 @@ def run_loop(
     if isinstance(scanner, UnconfiguredLocalScanner):
         raise ValueError("A configured local scanner is required")
     while not stop.is_set():
+        if before_claim is not None:
+            before_claim()
+        if stop.is_set():
+            break
         if not run_once(engine, scanner, auth_worker_user_id=auth_worker_user_id):
             stop.wait(idle_seconds)

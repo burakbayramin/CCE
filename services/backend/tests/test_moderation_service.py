@@ -108,6 +108,12 @@ def test_worker_engine_uses_one_restricted_connection(monkeypatch):
     assert captured["hide_parameters"] is True
 
 
+@pytest.mark.parametrize("seconds", [0, 241, float("inf"), float("nan")])
+def test_worker_timeout_is_finite_and_below_lease(seconds):
+    with pytest.raises(ValidationError):
+        settings(moderation_timeout_seconds=seconds)
+
+
 def test_worker_startup_rejects_bad_auth_before_loading_scanner_or_claiming(monkeypatch):
     calls = []
 
