@@ -66,7 +66,7 @@ jobs:
           docker stop supabase_realtime_cce-local supabase_auth_cce-local supabase_storage_cce-local supabase_pg_meta_cce-local supabase_rest_cce-local
           pnpm exec supabase db reset --local --yes
           docker start supabase_realtime_cce-local supabase_auth_cce-local supabase_storage_cce-local supabase_pg_meta_cce-local supabase_rest_cce-local
-      - run: uv run --project services/backend python scripts/setup_local_db.py
+      - run: uv run --project services/backend python scripts/setup_local_db.py --activation-fixtures
       - run: pnpm db:test
       - run: pnpm exec supabase db lint --local --level error --fail-on error
       - name: Real database and Auth integration

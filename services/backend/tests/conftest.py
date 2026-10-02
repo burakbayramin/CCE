@@ -91,6 +91,23 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                         )
                         assert removed.status_code == 200
                     db.execute(
+                        "delete from ops_private.character_capacity_events where actor_user_id=%s",
+                        (target,),
+                    )
+                    db.execute(
+                        "delete from ops_private.character_activation_events where character_id in "
+                        "(select id from world_private.characters "
+                        "where created_by=%s and is_fixture)",
+                        (target,),
+                    )
+                    created_people = db.execute(
+                        "delete from world_private.characters where created_by=%s and is_fixture "
+                        "returning person_id",
+                        (target,),
+                    ).fetchall()
+                    for created_person in created_people:
+                        db.execute("delete from world_private.people where id=%s", created_person)
+                    db.execute(
                         "delete from world_private.character_definitions "
                         "where created_by=%s or submission_id in "
                         "(select id from public.character_submissions where user_id=%s)",
