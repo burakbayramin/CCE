@@ -10,11 +10,18 @@ from cce.modules.contributions.schemas import CharacterProposal
 from cce.modules.identity.domain import Actor
 
 
-def read_definition(connection: Connection, submission_id: UUID) -> StoredDefinition | None:
+def read_definition(
+    connection: Connection, submission_id: UUID, revision_id: UUID | None = None
+) -> StoredDefinition | None:
     row = (
         connection.execute(
-            text("select * from world_private.character_definitions where submission_id=:id"),
-            {"id": submission_id},
+            text(
+                "select * from world_private.character_definitions "
+                "where submission_id=:id and (cast(:revision as uuid) is null "
+                "or revision_id=cast(:revision as uuid)) "
+                "order by definition_version desc limit 1"
+            ),
+            {"id": submission_id, "revision": revision_id},
         )
         .mappings()
         .one_or_none()
@@ -74,7 +81,7 @@ def prepare_definition(
         or (row["is_fixture"] and not test_mode)
     ):
         raise ContributionError(409, "Geçerli onay ve moderasyon kanıtı gerekli")
-    existing = read_definition(connection, submission_id)
+    existing = read_definition(connection, submission_id, item.revision_id)
     if existing is not None:
         return existing
     source = DefinitionSource.model_validate(
@@ -111,6 +118,7 @@ def prepare_definition(
             "actor": actor.user_id,
         },
     )
-    result = read_definition(connection, submission_id)
-    assert result is not None
+    result = read_definition(connection, submission_id, item.revision_id)
+    if result is None:
+        raise ContributionError(503, "Karakter tanımı kaydı okunamadı")
     return result

@@ -117,8 +117,17 @@ def change_draft(
             raise ContributionError(409, "Yalnız karar verilmemiş başvuru geri çekilebilir")
         status = "WITHDRAWN"
     elif action == "REVISE":
-        if item.status != "CHANGES_REQUESTED":
+        if item.status not in {"CHANGES_REQUESTED", "APPROVED"}:
             raise ContributionError(409, "Yeni revizyon için değişiklik talebi gerekli")
+        if (
+            item.status == "APPROVED"
+            and not connection.execute(
+                text("select ops_private.fixture_revision_allowed(:id)"), {"id": item.id}
+            ).scalar_one()
+        ):
+            raise ContributionError(
+                409, "Yalnız aktif test karakteri için normal revizyon açılabilir"
+            )
         status = "DRAFT"
     else:
         if item.status != "DRAFT":
@@ -127,6 +136,22 @@ def change_draft(
     proposed = definition if definition is not None else item.definition
     revision = item.revision_id
     if action == "SUBMIT":
+        if (
+            connection.execute(
+                text(
+                    "select exists(select 1 from public.submission_feedback "
+                    "where submission_id=:id and decision='APPROVED')"
+                ),
+                {"id": item.id},
+            ).scalar_one()
+            and not connection.execute(
+                text("select ops_private.fixture_revision_allowed(:id,cast(:definition as jsonb))"),
+                {"id": item.id, "definition": proposed.model_dump_json()},
+            ).scalar_one()
+        ):
+            raise ContributionError(
+                422, "Normal revizyonda temel kişilik, geçmiş, hedefler ve baseline değiştirilemez"
+            )
         if not (
             proposed.name
             and proposed.introduction
@@ -148,6 +173,7 @@ def change_draft(
         text(
             "update public.character_submissions set definition=cast(:definition as jsonb), "
             "status=:status, revision_id=:revision, version=version+1, "
+            "review_accepted=case when :action='REVISE' then false else review_accepted end, "
             "updated_at=now() where id=:id"
         ),
         {
@@ -155,6 +181,7 @@ def change_draft(
             "definition": proposed.model_dump_json(),
             "status": status,
             "revision": revision,
+            "action": action,
         },
     )
     changed = read_one(connection, item.id)

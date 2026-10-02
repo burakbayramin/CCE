@@ -108,6 +108,12 @@ def accounts() -> Iterator[tuple[list[dict[str, str]], httpx.Client]]:
                         (target,),
                     )
                     db.execute(
+                        "delete from ops_private.character_definition_events where character_id in "
+                        "(select id from world_private.characters "
+                        "where created_by=%s and is_fixture)",
+                        (target,),
+                    )
+                    db.execute(
                         "delete from ops_private.character_lifecycle_events where character_id in "
                         "(select id from world_private.characters "
                         "where created_by=%s and is_fixture)",

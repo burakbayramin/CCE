@@ -159,3 +159,23 @@ class LifecycleChange(FrozenModel):
     reason: str
     reviewed_prior_reason: str | None
     recorded_at: datetime
+
+
+class AdoptDefinition(FrozenModel):
+    definition_id: UUID
+    expected_version: int = Field(ge=1)
+    reason: str = Field(min_length=10, max_length=1000)
+    request_id: UUID
+
+
+class DefinitionChange(FrozenModel):
+    id: UUID
+    request_id: UUID
+    character_id: UUID
+    actor_user_id: UUID
+    previous_definition_id: UUID
+    definition_id: UUID
+    previous_version: int = Field(ge=1)
+    new_version: int = Field(ge=2)
+    reason: str
+    recorded_at: datetime

@@ -12,6 +12,7 @@ from cce.modules.characters.activation import (
     read_activation,
     read_capacity,
 )
+from cce.modules.characters.definition_changes import adopt_definition, read_definition_changes
 from cce.modules.characters.lifecycle import (
     LifecycleAction,
     apply_lifecycle,
@@ -21,10 +22,12 @@ from cce.modules.characters.repository import prepare_definition, read_definitio
 from cce.modules.characters.schemas import (
     ActivateCharacter,
     ActivatedCharacter,
+    AdoptDefinition,
     CapacityChange,
     ChangeCharacterCapacity,
     CharacterCapacity,
     CompileDefinition,
+    DefinitionChange,
     LifecycleChange,
     LifecycleCommand,
     StoredDefinition,
@@ -225,5 +228,28 @@ def review_router(
         connection: Annotated[Connection, Depends(transaction, scope="function")],
     ) -> LifecycleChange:
         return apply_lifecycle(connection, submission_id, action, payload, test_mode=test_mode)
+
+    @router.get(
+        "/{submission_id}/definition-changes",
+        response_model=list[DefinitionChange],
+        operation_id="characters_definition_changes",
+    )
+    def definition_changes(
+        submission_id: UUID,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> list[DefinitionChange]:
+        return read_definition_changes(connection, submission_id)
+
+    @router.post(
+        "/{submission_id}/definition-changes",
+        response_model=DefinitionChange,
+        operation_id="characters_definition_adopt",
+    )
+    def definition_adopt(
+        submission_id: UUID,
+        payload: AdoptDefinition,
+        connection: Annotated[Connection, Depends(transaction, scope="function")],
+    ) -> DefinitionChange:
+        return adopt_definition(connection, submission_id, payload, test_mode=test_mode)
 
     return router
