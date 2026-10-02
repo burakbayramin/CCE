@@ -110,6 +110,20 @@ class EffectOutcome:
     skipped: int
 
 
+def classify(error: DBAPIError, fallback: str) -> ContributionError:
+    """Translate a database refusal into the one error a caller should see.
+
+    Exposed so other protocol modules translate errors the same way instead of
+    each inventing its own mapping.
+    """
+    message = str(getattr(error, "orig", error))
+    logger.warning("cce:interaction-protocol error=%s", message)
+    for needle, status, detail in _FAILURES:
+        if needle in message:
+            return ContributionError(status, detail)
+    return ContributionError(503, fallback)
+
+
 def _map(error: DBAPIError) -> ContributionError:
     """Preserve the database's reason; never collapse it into a generic 500.
 
@@ -120,12 +134,7 @@ def _map(error: DBAPIError) -> ContributionError:
     distinct lease failures used to collapse into one message, which made the
     real reason unrecoverable from the outside.
     """
-    message = str(getattr(error, "orig", error))
-    logger.warning("cce:interaction-protocol error=%s", message)
-    for needle, status, detail in _FAILURES:
-        if needle in message:
-            return ContributionError(status, detail)
-    return ContributionError(503, "İş protokolü kaydı tamamlanamadı")
+    return classify(error, "İş protokolü kaydı tamamlanamadı")
 
 
 def claim(
