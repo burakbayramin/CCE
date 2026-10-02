@@ -27,13 +27,16 @@ def test_local_api_role_and_readiness() -> None:
     ) as connection:
         assert connection.execute("select current_user").fetchone() == ("cce_api",)
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            8,
+            database_module.REQUIRED_SCHEMA_VERSION,
         )
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             connection.execute("set role cce_migrator")
         connection.rollback()
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            connection.execute("update ops_private.schema_version set version = 8")
+            connection.execute(
+                "update ops_private.schema_version set version = %s",
+                (database_module.REQUIRED_SCHEMA_VERSION,),
+            )
         connection.rollback()
     config = Settings(
         environment="test",
