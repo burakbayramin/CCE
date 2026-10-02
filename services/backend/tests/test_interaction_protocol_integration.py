@@ -14,7 +14,7 @@ from uuid import uuid4
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
-from local_environment import ADMIN_DSN, ENGINE_DSN
+from local_environment import ADMIN_DSN, API_DSN, ENGINE_DSN
 from pydantic import SecretStr
 from sqlalchemy import text
 from test_activation_integration import prepared
@@ -31,8 +31,20 @@ pytestmark = pytest.mark.integration
 
 
 def engine():
-    """A cce_engine connection: the identity the protocol grants execute to."""
-    return create_database(Settings(environment="test", database_url=SecretStr(ENGINE_DSN)))
+    """A cce_engine connection: the identity the protocol grants execute to.
+
+    It must be configured as `engine_database_url`, not `database_url`: the
+    validator insists the latter carries the cce_api role, and cce_api is not
+    permitted to call these functions.
+    """
+    return create_database(
+        Settings(
+            environment="test",
+            database_url=SecretStr(API_DSN),
+            engine_database_url=SecretStr(ENGINE_DSN),
+        ),
+        owner_commands=True,
+    )
 
 
 def character_id(submission: dict) -> object:
