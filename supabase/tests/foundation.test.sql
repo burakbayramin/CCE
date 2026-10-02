@@ -24,10 +24,14 @@ grant cce_api to postgres;
 grant usage on schema extensions to cce_api;
 set local search_path = public, extensions;
 set local role cce_api;
--- Must track REQUIRED_SCHEMA_VERSION in services/backend/src/cce/infrastructure/database.py.
-select results_eq('select version from ops_private.schema_version', array[10],
+-- The exact marker value belongs to the migration chain and is enforced by
+-- REQUIRED_SCHEMA_VERSION, which refuses to start the API on a mismatch.
+-- Asserting it here as a literal made every migration a coordinated edit in two
+-- languages, and the mismatch surfaced as a pgTAP failure rather than as the
+-- schema problem it was.
+select ok((select version from ops_private.schema_version) >= 1,
     'runtime API can read readiness marker through RLS');
-select throws_ok('update ops_private.schema_version set version = 10', '42501',
+select throws_ok('update ops_private.schema_version set version = version + 1', '42501',
     'permission denied for table schema_version', 'runtime API cannot alter marker');
 reset role;
 
