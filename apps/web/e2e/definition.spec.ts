@@ -27,4 +27,13 @@ test('Owner compiles and activates an approved fixture once', async ({ page }) =
   await page.reload();
   await expect(page.getByText(identity, { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Test karakterini aktive et' })).toHaveCount(0);
+  await page.getByLabel('Lifecycle gerekçesi').fill('İzole tarayıcı askı denemesi');
+  await page.getByRole('button', { name: 'Askıya al' }).click();
+  await expect(page.getByText('Test karakteri: SUSPENDED', { exact: true })).toBeVisible();
+  await expect(page.getByText('Aktif karakter: 0 / 50')).toBeVisible();
+  await page.getByLabel('Lifecycle gerekçesi').fill('İzole tarayıcı yeniden aktivasyonu');
+  await page.getByLabel('Yukarıdaki askı/arşiv gerekçesini inceledim.').check();
+  await page.getByRole('button', { name: 'Yeniden aktive et' }).click();
+  await expect(page.getByText('Test karakteri aktif', { exact: true })).toBeVisible();
+  await expect(page.getByText(identity, { exact: true })).toBeVisible();
 });

@@ -7,6 +7,7 @@ import {
   type StoredDefinition,
   type ActivatedCharacter,
   type CharacterCapacity,
+  type LifecycleChange,
 } from '../../../../lib/contributions';
 import { apiErrorMessage } from '../../../../lib/api-errors';
 import { ReviewPanel } from '../../../../features/character-submissions/review-panel';
@@ -22,11 +23,12 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
   const result = await reviewApi<ReviewDetail>(`/${encodeURIComponent(id)}`);
   if (result.status === 404) notFound();
   const approved = result.data?.submission.status === 'APPROVED';
-  const [compiled, activated, capacity] = approved
+  const [compiled, activated, capacity, lifecycle] = approved
     ? await Promise.all([
         reviewApi<StoredDefinition | null>(`/${encodeURIComponent(id)}/definition`),
         reviewApi<ActivatedCharacter | null>(`/${encodeURIComponent(id)}/activation`),
         reviewApi<CharacterCapacity>('/capacity'),
+        reviewApi<LifecycleChange[]>(`/${encodeURIComponent(id)}/lifecycle`),
       ])
     : [null, null, null];
 
@@ -58,11 +60,13 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
             ))}
           {approved && compiled?.data && (
             <ActivationPanel
+              key={`${activated?.data?.id ?? 'pending'}:${activated?.data?.lifecycle_version ?? 0}`}
               item={result.data.submission}
               definition={compiled.data}
               activated={activated?.data ?? null}
               capacity={capacity?.data ?? null}
-              loadError={activated?.error ? apiErrorMessage(activated) : capacity?.error ? apiErrorMessage(capacity) : ''}
+              history={lifecycle?.data ?? []}
+              loadError={activated?.error ? apiErrorMessage(activated) : capacity?.error ? apiErrorMessage(capacity) : lifecycle?.error ? apiErrorMessage(lifecycle) : ''}
               fixtureCommandsEnabled={
                 process.env.CCE_ENVIRONMENT === 'test' && compiled.data.artifact.source.is_fixture
               }
