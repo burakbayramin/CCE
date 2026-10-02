@@ -54,8 +54,10 @@ def test_owner_authors_through_the_contributor_line_and_audits_the_real_actor(
         assert any(feedback["decision"] == "APPROVED" for feedback in detail["history"]["feedback"])
 
         with psycopg.connect(ADMIN_DSN) as db:
+            # psycopg returns uuid columns as UUID objects; the account fixture
+            # carries strings, so compare on the textual form.
             actors = [
-                row[0]
+                str(row[0])
                 for row in db.execute(
                     "select distinct actor_user_id from ops_private.contribution_events "
                     "where submission_id=%s",
