@@ -83,8 +83,9 @@ Mimari kararlar **kabul edilmiş**, uygulama **M3.2'de sürüyor**.
 | **M3.4** — Lifecycle | Askı, arşiv, aynı kimlikle restore, yeniden aktivasyon ve audit | ✅ Tamamlandı — yalnız fixture |
 | **M3.5** — Definition değişikliği | Denetimli benimseme, çekirdek kilitleri, geçmiş koruması | ✅ Tamamlandı — yalnız fixture |
 | **M3.6** — Yönetim görünümü | Owner kendi karakterini aynı hatta oluşturur; audit gerçek aktörü gösterir | ✅ Tamamlandı — yalnız fixture |
-| **M4.1** — Ortak iş protokolü | Kalıcı etkileşim rezervasyonu, fence'li lease, model-bağımsız etki kimliği, outbox | 🟡 Uygulandı, migration doğrulaması bekliyor |
-| **M4.2–M4.7** | Kuyruk/worker, model sınırı, işleyici hattı, kabul-teslim, stream, operasyon UI | ⏳ |
+| **M4.1** — Ortak iş protokolü | Kalıcı etkileşim rezervasyonu, fence'li lease, model-bağımsız etki kimliği, outbox | ✅ Tamamlandı |
+| **M4.2** — Kuyruk ve worker | pgmq adapter, sonuç commit edilmeden onay, bounded retry, quarantine, recovery, rol ayrımı | ✅ Tamamlandı |
+| **M4.3–M4.7** | Model sınırı, işleyici hattı, kabul-teslim, stream, operasyon UI | ⏳ |
 | **M5** | Dünya saati, presence, iki karakterli scene | ⏳ |
 | **M6** | Bilişsel state: yetkili retrieval, memory, relationship, reflection | ⏳ |
 | **M7–M8** | Public yayın, World Viewer, staging kabulü | ⏳ |

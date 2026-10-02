@@ -77,8 +77,9 @@ continues on the moderation/model acceptance gate and the interaction engine.
 | **M3.2** | Moderation queue, attempts, leases, worker loop, Owner retry UI | Queue/protocol implemented; real scanner and model acceptance pending |
 | **M3.3–M3.4** | Atomic activation, capacity, suspension, archive, restore, audit | Complete for isolated test fixtures only |
 | **M3.5–M3.6** | Audited definition adoption, core-field restrictions, Owner creation and review | Complete for isolated test fixtures only |
-| **M4.1** | Durable interaction reservations, fenced leases, effect identity, outbox | Implemented; migration verification pending |
-| **M4.2–M8** | Workers and runtime, world time, scenes, cognitive state, public viewer, staging acceptance | Pending |
+| **M4.1** | Durable interaction reservations, fenced leases, effect identity, outbox | Complete |
+| **M4.2** | pgmq adapter, ack only after commit, bounded retry, quarantine, recovery, worker role split | Complete |
+| **M4.3–M8** | Model boundary, processing handlers, delivery, streaming, operations UI, world time, scenes, cognitive state, public viewer, staging acceptance | Pending |
 
 > [!WARNING]
 > CCE does **not** yet create real live characters or run an accepted automatic
