@@ -14,9 +14,10 @@ from uuid import uuid4
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
-from local_environment import ADMIN_DSN, API_DSN, ENGINE_DSN
+from local_environment import ADMIN_DSN, API_DSN, ENGINE_DSN, WORKER_DSN
 from pydantic import SecretStr
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from test_activation_integration import prepared
 from test_identity_integration import settings
 from test_review_integration import FixtureModeration, headers
@@ -31,11 +32,10 @@ pytestmark = pytest.mark.integration
 
 
 def engine():
-    """A cce_engine connection: the identity the protocol grants execute to.
+    """A cce_engine connection, for the operator side of the protocol.
 
-    It must be configured as `engine_database_url`, not `database_url`: the
-    validator insists the latter carries the cce_api role, and cce_api is not
-    permitted to call these functions.
+    Only the Owner identity may resolve a stuck reservation, and Settings
+    validates that engine_database_url really carries cce_engine.
     """
     return create_database(
         Settings(
@@ -44,6 +44,24 @@ def engine():
             engine_database_url=SecretStr(ENGINE_DSN),
         ),
         owner_commands=True,
+    )
+
+
+def worker_engine():
+    """A cce_worker_cpu connection, for running a reservation.
+
+    The worker identity is configured outside Settings, exactly as the
+    moderation worker configures it: cce_worker_cpu is the only role granted
+    begin_interaction_attempt, and opening an attempt is worker work.
+    """
+    assert make_url(WORKER_DSN).username == "cce_worker_cpu"
+    return create_engine(
+        WORKER_DSN,
+        pool_size=3,
+        max_overflow=0,
+        pool_timeout=2,
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 3, "options": "-c statement_timeout=2000"},
     )
 
 
@@ -94,9 +112,12 @@ def test_one_reservation_per_character_and_resume_is_fenced(activation_accounts)
         activate(api, owner, item, definition)
     target = character_id(item)
 
-    worker_engine = engine()
+    workers = worker_engine()
     try:
-        with worker_engine.begin() as connection:
+        # Each expected refusal gets its own transaction: a database error
+        # aborts the transaction it happened in, so the next statement would
+        # fail for the wrong reason.
+        with workers.begin() as connection:
             held = protocol.claim(
                 connection,
                 character_id=target,
@@ -106,17 +127,18 @@ def test_one_reservation_per_character_and_resume_is_fenced(activation_accounts)
             )
             assert held.ownership_generation == 1
 
-            # A second worker is refused while the lease is live.
-            with pytest.raises(ContributionError) as refused:
-                protocol.claim(
-                    connection,
-                    character_id=target,
-                    purpose="ADMIN_CHAT",
-                    holder="worker-b",
-                    command_id=uuid4(),
-                )
-            assert refused.value.status == 409
+        # A second worker is refused while the lease is live.
+        with workers.begin() as connection, pytest.raises(ContributionError) as refused:
+            protocol.claim(
+                connection,
+                character_id=target,
+                purpose="ADMIN_CHAT",
+                holder="worker-b",
+                command_id=uuid4(),
+            )
+        assert refused.value.status == 409
 
+        with workers.begin() as connection:
             # The holder resuming renews and fences its own earlier generation.
             resumed = protocol.claim(
                 connection,
@@ -127,15 +149,16 @@ def test_one_reservation_per_character_and_resume_is_fenced(activation_accounts)
             )
             assert resumed.ownership_generation == 2
 
-            # The superseded generation cannot open an attempt.
-            with pytest.raises(ContributionError) as stale:
-                protocol.begin_attempt(connection, reservation=held, worker_id="worker-a")
-            assert stale.value.status == 409
+        # The superseded generation cannot open an attempt.
+        with workers.begin() as connection, pytest.raises(ContributionError) as stale:
+            protocol.begin_attempt(connection, reservation=held, worker_id="worker-a")
+        assert stale.value.status == 409
 
+        with workers.begin() as connection:
             run = protocol.begin_attempt(connection, reservation=resumed, worker_id="worker-a")
             assert run.ownership_generation == 2
     finally:
-        worker_engine.dispose()
+        workers.dispose()
 
 
 def test_a_lapsed_lease_does_not_free_the_character(activation_accounts) -> None:
@@ -147,9 +170,9 @@ def test_a_lapsed_lease_does_not_free_the_character(activation_accounts) -> None
         activate(api, owner, item, definition)
     target = character_id(item)
 
-    worker_engine = engine()
+    workers = worker_engine()
     try:
-        with worker_engine.begin() as connection:
+        with workers.begin() as connection:
             held = protocol.claim(
                 connection,
                 character_id=target,
@@ -158,31 +181,40 @@ def test_a_lapsed_lease_does_not_free_the_character(activation_accounts) -> None
                 command_id=uuid4(),
                 lease_seconds=30,
             )
-            expire(held.id)
+        expire(held.id)
 
-            # Neither a new worker nor the old one gets the character back.
-            for holder in ("worker-b", "worker-a"):
-                with pytest.raises(ContributionError) as stuck:
-                    protocol.claim(
-                        connection,
-                        character_id=target,
-                        purpose="SCENE",
-                        holder=holder,
-                        command_id=uuid4(),
-                    )
-                assert stuck.value.status == 409
+        # Neither a new worker nor the old one gets the character back.
+        for holder in ("worker-b", "worker-a"):
+            with workers.begin() as connection, pytest.raises(ContributionError) as stuck:
+                protocol.claim(
+                    connection,
+                    character_id=target,
+                    purpose="SCENE",
+                    holder=holder,
+                    command_id=uuid4(),
+                )
+            assert stuck.value.status == 409
 
+        with workers.begin() as connection:
             stale = protocol.stale_reservations(connection)
             assert [row["reservation_id"] for row in stale] == [held.id]
 
-            resolved = protocol.resolve(
-                connection,
-                reservation_id=held.id,
-                expected_generation=held.ownership_generation,
-                reason="Isolated operator resolution for a lapsed lease",
-            )
-            assert resolved.state == "RESOLVED"
+        # Resolving is an operator authority, not worker work, so it runs as the
+        # Owner identity and in its own transaction.
+        owner_engine = engine()
+        try:
+            with owner_engine.begin() as connection:
+                resolved = protocol.resolve(
+                    connection,
+                    reservation_id=held.id,
+                    expected_generation=held.ownership_generation,
+                    reason="Isolated operator resolution for a lapsed lease",
+                )
+                assert resolved.state == "RESOLVED"
+        finally:
+            owner_engine.dispose()
 
+        with workers.begin() as connection:
             # Only after the decision can a new interaction start.
             again = protocol.claim(
                 connection,
@@ -193,7 +225,7 @@ def test_a_lapsed_lease_does_not_free_the_character(activation_accounts) -> None
             )
             assert again.ownership_generation == 1
     finally:
-        worker_engine.dispose()
+        workers.dispose()
 
 
 def test_effect_identity_ignores_the_model_that_produced_it(activation_accounts) -> None:
@@ -206,9 +238,9 @@ def test_effect_identity_ignores_the_model_that_produced_it(activation_accounts)
     target = character_id(item)
 
     identity = f"turn-1:memory:{uuid4()}"
-    worker_engine = engine()
+    workers = worker_engine()
     try:
-        with worker_engine.begin() as connection:
+        with workers.begin() as connection:
             first = protocol.claim(
                 connection,
                 character_id=target,
@@ -263,7 +295,7 @@ def test_effect_identity_ignores_the_model_that_produced_it(activation_accounts)
             assert (repeated.applied, repeated.skipped) == (0, 1)
         assert effect_count(identity) == 1
     finally:
-        worker_engine.dispose()
+        workers.dispose()
 
 
 def test_an_empty_result_is_a_result(activation_accounts) -> None:
@@ -274,9 +306,9 @@ def test_an_empty_result_is_a_result(activation_accounts) -> None:
         activate(api, owner, item, definition)
     target = character_id(item)
 
-    worker_engine = engine()
+    workers = worker_engine()
     try:
-        with worker_engine.begin() as connection:
+        with workers.begin() as connection:
             held = protocol.claim(
                 connection,
                 character_id=target,
@@ -310,4 +342,4 @@ def test_an_empty_result_is_a_result(activation_accounts) -> None:
                 command_id=uuid4(),
             )
     finally:
-        worker_engine.dispose()
+        workers.dispose()
