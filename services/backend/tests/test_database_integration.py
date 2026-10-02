@@ -50,7 +50,9 @@ def test_database_ready_rejects_schema_version_mismatch(monkeypatch: pytest.Monk
     engine = create_database(config)
     try:
         assert database_ready(engine)
-        monkeypatch.setattr(database_module, "REQUIRED_SCHEMA_VERSION", 9)
+        monkeypatch.setattr(
+            database_module, "REQUIRED_SCHEMA_VERSION", database_module.REQUIRED_SCHEMA_VERSION + 1
+        )
         assert not database_ready(engine)
         with pytest.raises(RuntimeError, match="API database identity or schema"):
             with TestClient(create_app(config)):
@@ -78,16 +80,19 @@ def test_worker_has_separate_restricted_identity() -> None:
 def test_migration_owner_cannot_update_marker_under_forced_rls() -> None:
     if os.environ.get("CCE_ENVIRONMENT") != "test":
         pytest.fail("Integration tests require isolated local fixtures")
+    expected = database_module.REQUIRED_SCHEMA_VERSION
     with psycopg.connect(ADMIN_DSN) as connection:
         connection.execute("set role cce_migrator")
         assert connection.execute("select current_user").fetchone() == ("cce_migrator",)
         assert (
             connection.execute(
-                "update ops_private.schema_version set version=8 where singleton returning version"
+                "update ops_private.schema_version set version=%s "
+                "where singleton returning version",
+                (expected,),
             ).fetchone()
             is None
         )
         connection.execute("reset role")
         assert connection.execute("select version from ops_private.schema_version").fetchone() == (
-            8,
+            expected,
         )
