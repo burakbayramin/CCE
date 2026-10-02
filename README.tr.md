@@ -70,25 +70,45 @@ Katkıcılar karakter tasarlar; **onay ve yayın yetkisi yalnızca World Owner'd
 
 ## 📍 Durum
 
-Mimari kararlar **kabul edilmiş**, uygulama **M3.2'de sürüyor**.
+Küratörlük hattı uçtan uca çalışıyor: katkıcı karakter önerir, World Owner gerekçeli
+inceler ve karar değiştirilemez. İki kapı bilinçli olarak kapalı — kabul edilmiş bir
+moderasyon modeli yok ve henüz gerçek içerik aktive edilemiyor.
 
-| Aşama | Kapsam | Durum |
-| :-- | :-- | :-- |
-| **M1** — Foundation | Lokal web/API/DB, health akışı, CI | ✅ Tamamlandı |
-| **M2** — Kimlik ve katkı | Kayıt/giriş, taslak → başvuru → geri çekme, Owner incelemesi, private avatar | ✅ Tamamlandı |
-| **M3.1** — Definition | Onaylı başvurudan değiştirilemez karakter tanımı derleme | ✅ Tamamlandı |
-| **M3.2** — Moderasyon kapısı | Kalıcı iş kuyruğu, deneme/lease protokolü, worker döngüsü, Owner bekleme/retry görünümü | 🟡 Kuyruk + protokol bitti |
-| **M3.2** — Gerçek tarayıcı | Yerel metin/görsel model adapter'ları, model kabulü | ⏳ Beklemede — bilinçli olarak ertelendi |
-| **M3.3** — Aktivasyon temeli | İzole test fixture'ı için atomik kimlik/başlangıç kaydı, kapasite ve Owner görünümü | ✅ Tamamlandı — yalnız fixture |
-| **M3.4** — Lifecycle | Askı, arşiv, aynı kimlikle restore, yeniden aktivasyon ve audit | ✅ Tamamlandı — yalnız fixture |
-| **M3.5** — Definition değişikliği | Denetimli benimseme, çekirdek kilitleri, geçmiş koruması | ✅ Tamamlandı — yalnız fixture |
-| **M3.6** — Yönetim görünümü | Owner kendi karakterini aynı hatta oluşturur; audit gerçek aktörü gösterir | ✅ Tamamlandı — yalnız fixture |
-| **M4.1** — Ortak iş protokolü | Kalıcı etkileşim rezervasyonu, fence'li lease, model-bağımsız etki kimliği, outbox | ✅ Tamamlandı |
-| **M4.2** — Kuyruk ve worker | pgmq adapter, sonuç commit edilmeden onay, bounded retry, quarantine, recovery, rol ayrımı | ✅ Tamamlandı |
-| **M4.3–M4.7** | Model sınırı, işleyici hattı, kabul-teslim, stream, operasyon UI | ⏳ |
-| **M5** | Dünya saati, presence, iki karakterli scene | ⏳ |
-| **M6** | Bilişsel state: yetkili retrieval, memory, relationship, reflection | ⏳ |
-| **M7–M8** | Public yayın, World Viewer, staging kabulü | ⏳ |
+Aşamalar numaraya göre değil **bugün gerçekten ne yaptıklarına** göre gruplanıyor,
+çünkü bu ayrım sıralamadan daha önemli.
+
+### ✅ Tamamlandı
+
+| Aşama | Size kazandırdığı |
+| :-- | :-- |
+| **M1** — Foundation | Lokal web/API/veritabanı, health kontrolleri, üç job'lı CI |
+| **M2** — Kimlik ve katkı | Giriş, taslak → başvuru → geri çekme, Owner incelemesi, private avatar |
+| **M3.1** — Definition derleyici | Değiştirilemez, hash ile doğrulanan karakter tanımları |
+| **M4.1** — Kalıcı iş protokolü | Karakter başına tek rezervasyon, fence'li lease, model-bağımsız etki kimliği, outbox |
+| **M4.2** — Kuyruk ve worker | pgmq adapter, commit sonrası onay, bounded retry, quarantine, recovery taraması |
+| **M4.3** — Model sınırı | Provider protokolü, deterministik fake, zorlanan token/süre/deneme bütçesi, doğrulanan çıktı |
+
+### 🧪 Yalnız test fixture'ı
+
+Uygulanmış ve test edilmiş, ancak **her komut yolu gerçek içeriği reddediyor.**
+`is_fixture` sınırı yalnız uygulamada değil, veritabanında da zorlanıyor.
+
+| Aşama | Size kazandırdığı |
+| :-- | :-- |
+| **M3.2** — Moderasyon kuyruğu | Kalıcı kuyruk, deneme/lease protokolü, worker döngüsü, Owner bekleme/retry görünümü |
+| **M3.3** — Aktivasyon | Atomik kimlik ve başlangıç kaydı, kapasite sınırları, Owner görünümü |
+| **M3.4** — Lifecycle | Askı, arşiv, aynı kimlikle restore, yeniden aktivasyon, denetimli |
+| **M3.5** — Definition değişikliği | Denetimli benimseme, kilitli çekirdek alanlar, korunan geçmiş |
+| **M3.6** — Yönetim görünümü | Owner karakterleri aynı hatta yazıyor; audit gerçek aktörü gösteriyor |
+
+### ⏳ Açık
+
+| Aşama | Kapsam |
+| :-- | :-- |
+| **M3.2 (son)** | Kalibre edilmiş yerel tarayıcı ve model kabulü |
+| **M4.4–M4.7** | İşleyici handler'ları, kabul-teslim, stream, operasyon UI'ı |
+| **M5–M6** | Dünya saati, presence, scene'ler, bilişsel state |
+| **M7–M8** | Public yayın, World Viewer, staging kabulü |
 
 > [!WARNING]
 > **Bu dilim canlı karakter oluşturmaz ve gerçek otomatik moderasyon yapılandırmamıştır.**

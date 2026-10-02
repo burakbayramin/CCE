@@ -66,29 +66,55 @@ Core principles:
 
 ## Current status
 
-The [architecture decisions](WORLD_ARCHITECTURE_DECISIONS.md) are accepted. Work
-continues on the moderation/model acceptance gate and the interaction engine.
+The curation line works end to end: a contributor proposes a character, a World
+Owner reviews it with a reason, and the decision is immutable. Two gates are
+still closed, both deliberately — no accepted moderation model exists, and
+nothing may activate real content yet.
 
-| Milestone | Scope | Status |
-| :-- | :-- | :-- |
-| **M1** | Local web/API/database foundation, health checks, CI | Complete |
-| **M2** | Identity, contributor drafts, review, private avatars | Complete |
-| **M3.1** | Immutable compiled character definitions | Complete |
-| **M3.2** | Moderation queue, attempts, leases, worker loop, Owner retry UI | Queue/protocol implemented; real scanner and model acceptance pending |
-| **M3.3–M3.4** | Atomic activation, capacity, suspension, archive, restore, audit | Complete for isolated test fixtures only |
-| **M3.5–M3.6** | Audited definition adoption, core-field restrictions, Owner creation and review | Complete for isolated test fixtures only |
-| **M4.1** | Durable interaction reservations, fenced leases, effect identity, outbox | Complete |
-| **M4.2** | pgmq adapter, ack only after commit, bounded retry, quarantine, recovery, worker role split | Complete |
-| **M4.3–M8** | Model boundary, processing handlers, delivery, streaming, operations UI, world time, scenes, cognitive state, public viewer, staging acceptance | Pending |
+Milestones are grouped by what they actually do today rather than by number,
+because that distinction matters more than the ordering.
+
+### ✅ Shipped
+
+| Milestone | What it gives you |
+| :-- | :-- |
+| **M1** — Foundation | Local web/API/database, health checks, three-job CI |
+| **M2** — Identity & contributions | Sign-in, drafts → submission → withdrawal, Owner review, private avatars |
+| **M3.1** — Definition compiler | Immutable, hash-verified character definitions |
+| **M4.1** — Durable job protocol | One reservation per character, fenced leases, model-independent effect identity, outbox |
+| **M4.2** — Queue & worker | pgmq adapter, acknowledgement only after commit, bounded retry, quarantine, recovery scan |
+| **M4.3** — Model boundary | Provider protocol, deterministic fake, enforced token/time/attempt budgets, validated output |
+
+### 🧪 Fixture-only
+
+Implemented and tested, but every command path refuses real content. The
+`is_fixture` gate is enforced in the database, not only in the application.
+
+| Milestone | What it gives you |
+| :-- | :-- |
+| **M3.2** — Moderation queue | Durable queue, attempt/lease protocol, worker loop, Owner wait/retry view |
+| **M3.3** — Activation | Atomic identity and bootstrap record, capacity limits, Owner view |
+| **M3.4** — Lifecycle | Suspend, archive, same-identity restore, reactivate, audited |
+| **M3.5** — Definition changes | Audited adoption, pinned core fields, history preserved |
+| **M3.6** — Operations view | Owner authors characters through the same line; audit shows the real actor |
+
+### ⏳ Open
+
+| Milestone | Scope |
+| :-- | :-- |
+| **M3.2 (final)** | The calibrated local scanner and the model acceptance gate |
+| **M4.4–M4.7** | Processing handlers, delivery, streaming, operations UI |
+| **M5–M6** | World time, presence, scenes, cognitive state |
+| **M7–M8** | Public projection, World Viewer, staging acceptance |
 
 > [!WARNING]
-> CCE does **not** yet create real live characters or run an accepted automatic
+> CCE does **not** yet create live characters or run an accepted automatic
 > moderation model. `PASS`, `REVIEW`, and `BLOCK` fixtures are injected only into
-> tests. A `BLOCK` or `ERROR` cannot be overridden, and `REVIEW` requires an
-> explicit positive decision. Activation, lifecycle, and definition-adoption
-> commands are restricted to isolated test fixtures. The local model, runtime,
-> and license choice remain open; no paid external moderation API or cloud
-> fallback is planned. This repository is not ready for a public contributor launch.
+> tests and are labelled as such in the UI. A `BLOCK` or `ERROR` cannot be
+> overridden, and `REVIEW` requires an explicit positive decision. The local
+> model, runtime, and license choice remain open; no paid external moderation
+> API or cloud fallback is planned. This repository is not ready for a public
+> contributor launch.
 
 See the [implementation plan](IMPLEMENTATION_PLAN.md) for the detailed and
 up-to-date work log.
