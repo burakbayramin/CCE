@@ -77,7 +77,8 @@ Mimari kararlar **kabul edilmiş**, uygulama **M3.2'de sürüyor**.
 | **M3.1** — Definition | Onaylı başvurudan değiştirilemez karakter tanımı derleme | ✅ Tamamlandı |
 | **M3.2** — Moderasyon kapısı | Kalıcı iş kuyruğu, deneme/lease protokolü, worker döngüsü, Owner bekleme/retry görünümü | 🟡 Kuyruk + protokol bitti |
 | **M3.2** — Gerçek tarayıcı | Yerel metin/görsel model adapter'ları, model kabulü | ⏳ Beklemede — bilinçli olarak ertelendi |
-| **M3.3–M3.6** | Aktivasyon transaction'ı, lifecycle, değişiklik, admin görünümü | ⏳ Başlanmadı |
+| **M3.3** — Aktivasyon temeli | İzole test fixture'ı için atomik kimlik/başlangıç kaydı, kapasite ve Owner görünümü | 🟡 Test fixture'larıyla uygulandı; gerçek içerik kapalı |
+| **M3.4–M3.6** | Lifecycle, değişiklik, kapsamlı admin görünümü | ⏳ Başlanmadı |
 | **M4** | İş altyapısı, private admin chat, gerçek model sınırı | ⏳ |
 | **M5** | Dünya saati, presence, iki karakterli scene | ⏳ |
 | **M6** | Bilişsel state: yetkili retrieval, memory, relationship, reflection | ⏳ |
