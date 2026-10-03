@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from cce.core.config import Settings
 from cce.infrastructure.database import create_database, database_ready
 from cce.infrastructure.telemetry import RequestTelemetry, configure_logging
+from cce.modules.chat.stream import chat_router
 from cce.modules.contributions.avatar_router import avatar_router
 from cce.modules.contributions.moderation import ModerationProvider
 from cce.modules.contributions.review_router import review_router
@@ -50,6 +51,7 @@ def create_app(
     app.include_router(identity_router(engine, verifier))
     app.include_router(contributions_router(engine, verifier))
     app.include_router(avatar_router(config, engine, owner_engine, verifier))
+    app.include_router(chat_router(engine, owner_engine, verifier))
     app.include_router(
         review_router(
             owner_engine,
