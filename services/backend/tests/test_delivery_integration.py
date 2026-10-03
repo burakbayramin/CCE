@@ -10,7 +10,7 @@ from uuid import uuid4
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
-from local_environment import ADMIN_DSN
+from local_environment import ADMIN_DSN, DB_PORT
 from test_activation_integration import prepared
 from test_identity_integration import settings
 from test_interaction_protocol_integration import activate, worker_engine
@@ -23,8 +23,11 @@ from cce.modules.interactions.processing import Affect, Memory, Turn, apply_turn
 
 pytestmark = pytest.mark.integration
 
+# Derived from the same port as every other test helper: the suite runs
+# against whichever stack the environment selects, not a fixed one.
 PUBLISHER_DSN = (
-    "postgresql+psycopg://cce_worker_publisher:cce-local-publisher-only@127.0.0.1:55322/postgres"
+    f"postgresql+psycopg://cce_worker_publisher:cce-local-publisher-only"
+    f"@127.0.0.1:{DB_PORT}/postgres"
 )
 
 
