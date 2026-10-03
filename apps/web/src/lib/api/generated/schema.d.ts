@@ -176,6 +176,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/interactions/{reservation_id}/turns/{turn_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Turn
+         * @description Session, role and delivery are all settled before the response
+         *     starts, and the connection is closed before the first byte is sent so a
+         *     slow client cannot hold a pool slot open.
+         */
+        get: operations["stream_interaction_turn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reviews/capacity": {
         parameters: {
             query?: never;
@@ -831,6 +853,11 @@ export interface components {
              */
             created_at: string;
         };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** Health */
         Health: {
             /**
@@ -1231,6 +1258,19 @@ export interface components {
             /** Expected Version */
             expected_version: number;
             definition: components["schemas"]["CharacterProposal"];
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** VersionCommand */
         VersionCommand: {
@@ -2161,6 +2201,74 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ContributionProblem"];
                 };
+            };
+        };
+    };
+    stream_interaction_turn: {
+        parameters: {
+            query?: {
+                offset?: number;
+                chunk?: number;
+            };
+            header?: never;
+            path: {
+                reservation_id: string;
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description World Owner role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turn not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turn not delivered */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Interaction service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
