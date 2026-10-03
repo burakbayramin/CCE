@@ -53,6 +53,11 @@ def main() -> None:
             ("cce_api", "cce-local-api-only"),
             ("cce_engine", "cce-local-engine-only"),
             ("cce_worker_cpu", "cce-local-worker-only"),
+            # The publisher drains the outbox, so it needs a login identity of
+            # its own: sharing the CPU worker's credential would collapse two
+            # separate runtime planes into one.
+            ("cce_worker_publisher", "cce-local-publisher-only"),
+            ("cce_worker_maintenance", "cce-local-maintenance-only"),
         ]:
             connection.execute(
                 sql.SQL("alter role {} login password {}").format(
