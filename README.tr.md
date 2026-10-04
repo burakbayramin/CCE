@@ -87,6 +87,9 @@ Aşamalar numaraya göre değil **bugün gerçekten ne yaptıklarına** göre gr
 | **M4.1** — Kalıcı iş protokolü | Karakter başına tek rezervasyon, fence'li lease, model-bağımsız etki kimliği, outbox |
 | **M4.2** — Kuyruk ve worker | pgmq adapter, commit sonrası onay, bounded retry, quarantine, recovery taraması |
 | **M4.3** — Model sınırı | Provider protokolü, deterministik fake, zorlanan token/süre/deneme bütçesi, doğrulanan çıktı |
+| **M4.4** — İşleme hattı | Kaynak kimliğine bağlı handler'lar, atomik tur uygulaması, flag'li ilişki hataları |
+| **M4.5** — Kabul ve teslim | İdempotent tur kabulü, outbox ile teslim, yayıncı düzlemi |
+| **M4.7** — Operasyon UI'ı | Worker canlılığı, canlı kuyruk, kontrollü çözümleme ve yeniden kuyruğa alma |
 
 ### 🧪 Yalnız test fixture'ı
 
@@ -101,17 +104,53 @@ Uygulanmış ve test edilmiş, ancak **her komut yolu gerçek içeriği reddediy
 | **M3.5** — Definition değişikliği | Denetimli benimseme, kilitli çekirdek alanlar, korunan geçmiş |
 | **M3.6** — Yönetim görünümü | Owner karakterleri aynı hatta yazıyor; audit gerçek aktörü gösteriyor |
 
+### 🟡 Kısmi
+
+| Aşama | Bitti | Eksik |
+| :-- | :-- | :-- |
+| **M4.6** — Yanıt ve akış | Teslim edilmiş turun SSE akışı, denemeye bağlı ephemeral yanıt token'ları, gelen/yanıt ayrı tekilleştirmesi, geç kare reddi, tavanlı polling yedeği | Tarayıcıda private Supabase Realtime kanal bağlantısı |
+
 ### ⏳ Açık
 
 | Aşama | Kapsam |
 | :-- | :-- |
 | **M3.2 (son)** | Kalibre edilmiş yerel tarayıcı ve model kabulü |
-| **M4.4** | Kaynak kimliğine bağlı işleyici handler'ları, atomik tur uygulaması, flag'li ilişki hataları |
-| **M4.5** | İdempotent tur kabulü, outbox ile teslim, yayıncı düzlemi |
-| **M4.6** | Teslim edilmiş turun SSE akışı — Realtime kanalı ve yanıt token'ı açık |
-| **M4.7** | Operasyon UI'ı |
 | **M5–M6** | Dünya saati, presence, scene'ler, bilişsel state |
 | **M7–M8** | Public yayın, World Viewer, staging kabulü |
+
+## 🔒 Proje sahibinin kararını bekleyen kapılar
+
+İki kapı da daha fazla kod yazarak kapanmıyor. Her biri, uygulamaya değil proje
+sahibine ait bir seçim gerektiriyor.
+
+### 1. M3.2 moderasyon modeli
+
+**Engellediği:** gerçek içerik aktivasyonu ve katkıcı açılışı.
+
+Çevresi tamam ve bekliyor: kuyruk, deneme/lease protokolü, worker döngüsü, Owner
+retry görünümü, M4.3'teki provider sınırı ve testlerin koştuğu deterministik fake.
+Eksik olan modelin kendisi.
+
+| Soru | Neden senin kararın |
+| :-- | :-- |
+| **Lisans** | Modelin amaçlanan kullanıma izin verip vermediği hukuki bir sorudur, mühendislik değil |
+| **Boyut ve nicemleme** | Hedef makine RTX 3070 / 32 GB; rahat sığan şey bir donanım kararıdır |
+| **Yalnız metin mi, vision mı** | Avatar taraması vision ister. Avatar moderasyonu kapsamdaysa metin-only bu kapıyı kapatmaz |
+
+Seçilene kadar `PASS`/`REVIEW`/`BLOCK` test fixture'ı olarak kalır ve aktivasyon,
+lifecycle ve definition benisleme yolları gerçek içeriğe kapalıdır.
+
+### 2. Akışın private Realtime kanalına bağlanması
+
+**Engellediği:** M4.6'nın taşıma katmanı, protokolü değil.
+
+Yanıt token'ı, sıra kuralları, kalıcı mesaj defteri ve polling yedeği hazır ve
+testli. Kalan, tarayıcıyı private bir Supabase Realtime kanalına bağlamak.
+
+Mimari kararlar zaten şekli belirledi: kanal private, `Authorization`/RLS uygulanır,
+kanal adı tek başına yetki sağlamaz, tarayıcıya veya yerel worker'a geniş
+`service_role` verilmez. Gereken, **proje üzerinde** Realtime Authorization
+kurulumu — bu deployment konfigürasyonudur, şema değil; commit'lenemez.
 
 > [!WARNING]
 > **Bu dilim canlı karakter oluşturmaz ve gerçek otomatik moderasyon yapılandırmamıştır.**

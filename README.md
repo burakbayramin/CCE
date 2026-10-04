@@ -84,6 +84,9 @@ because that distinction matters more than the ordering.
 | **M4.1** — Durable job protocol | One reservation per character, fenced leases, model-independent effect identity, outbox |
 | **M4.2** — Queue & worker | pgmq adapter, acknowledgement only after commit, bounded retry, quarantine, recovery scan |
 | **M4.3** — Model boundary | Provider protocol, deterministic fake, enforced token/time/attempt budgets, validated output |
+| **M4.4** — Processing pipeline | Handlers bound to source identity, atomic turn application, flagged relationship failures |
+| **M4.5** — Acceptance & delivery | Idempotent turn acceptance, outbox-driven delivery, publisher plane |
+| **M4.7** — Operations UI | Worker presence, live queue, controlled resolve and requeue |
 
 ### 🧪 Fixture-only
 
@@ -98,17 +101,56 @@ Implemented and tested, but every command path refuses real content. The
 | **M3.5** — Definition changes | Audited adoption, pinned core fields, history preserved |
 | **M3.6** — Operations view | Owner authors characters through the same line; audit shows the real actor |
 
+### 🟡 Partial
+
+| Milestone | Delivered | Still missing |
+| :-- | :-- | :-- |
+| **M4.6** — Response & stream | SSE stream of a delivered turn, ephemeral response tokens bound to an attempt, inbound/reply deduped separately, late frames refused, capped polling fallback | Private Supabase Realtime channel binding in the browser |
+
 ### ⏳ Open
 
 | Milestone | Scope |
 | :-- | :-- |
 | **M3.2 (final)** | The calibrated local scanner and the model acceptance gate |
-| **M4.4** | Processing handlers bound to source identity, atomic turn application, flagged relationship failures |
-| **M4.5** | Idempotent turn acceptance, outbox-driven delivery, publisher plane |
-| **M4.6** | SSE stream of a delivered turn — Realtime channel and response tokens still open |
-| **M4.7** | Operations UI |
 | **M5–M6** | World time, presence, scenes, cognitive state |
 | **M7–M8** | Public projection, World Viewer, staging acceptance |
+
+## 🔒 Decisions waiting on the owner
+
+Two gates cannot be closed by writing more code. Each needs a choice that
+belongs to the project owner, not to an implementation.
+
+### 1. The M3.2 moderation model
+
+**Blocks:** real content activation, and contributor launch.
+
+Everything around it is built and waiting — the queue, the attempt/lease
+protocol, the worker loop, the owner retry view, the provider boundary in M4.3,
+and the deterministic fake every test runs against. What is missing is the
+model itself.
+
+| Question | Why it is yours to answer |
+| :-- | :-- |
+| **Licence** | Whether the model permits your intended use is a legal question, not an engineering one |
+| **Size and quantisation** | The target machine is an RTX 3070 with 32 GB; what fits comfortably is a hardware decision |
+| **Text-only or vision** | Avatar scanning needs vision. If avatar moderation is in scope, text-only does not close this gate |
+
+Until it is chosen, `PASS`/`REVIEW`/`BLOCK` remain test fixtures and every
+activation, lifecycle and definition-adoption path stays closed to real content.
+
+### 2. Binding the stream to a private Realtime channel
+
+**Blocks:** the M4.6 transport, not the protocol.
+
+The response token, the sequence rules, the durable message log and the polling
+fallback are all in place and tested. What remains is connecting the browser to
+a private Supabase Realtime channel.
+
+The architecture decisions already rule the shape: the channel is private,
+`Authorization`/RLS applies, the channel name grants nothing by itself, and a
+broad `service_role` key is never handed to a browser or a local worker. What it
+needs is the Realtime Authorization setup **on the project** — that is deployment
+configuration, not schema, so it cannot be committed.
 
 > [!WARNING]
 > CCE does **not** yet create live characters or run an accepted automatic
