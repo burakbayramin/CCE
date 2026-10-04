@@ -198,6 +198,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/operations/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Operations Snapshot */
+        get: operations["operations_snapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/operations/reservations/{reservation_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Reservation */
+        post: operations["operations_resolve_reservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/operations/reservations/{reservation_id}/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue Reservation */
+        post: operations["operations_requeue_reservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reviews/capacity": {
         parameters: {
             query?: never;
@@ -1048,6 +1099,29 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /**
+         * OperationsCommand
+         * @description Both operator commands. A reason is mandatory: an unexplained state
+         *     change is how a system becomes unexplainable.
+         */
+        OperationsCommand: {
+            /** Expected Generation */
+            expected_generation: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Worker Id
+             * @default operations
+             */
+            worker_id: string;
+        };
+        /** OperationsView */
+        OperationsView: {
+            /** Workers */
+            workers?: components["schemas"]["WorkerView"][];
+            /** Held */
+            held?: components["schemas"]["ReservationView"][];
+        };
         /** Personality */
         Personality: {
             /**
@@ -1094,6 +1168,38 @@ export interface components {
              * @constant
              */
             requires_context_filtering: true;
+        };
+        /** ReservationView */
+        ReservationView: {
+            /** Id */
+            id: string;
+            /** Character Id */
+            character_id?: string | null;
+            /** Purpose */
+            purpose?: string | null;
+            /** State */
+            state?: string | null;
+            /** Ownership Generation */
+            ownership_generation?: number | null;
+            /** Lease Until */
+            lease_until?: string | null;
+            /**
+             * Open Run Attempts
+             * @default 0
+             */
+            open_run_attempts: number;
+            /** Last Attempt State */
+            last_attempt_state?: string | null;
+            /**
+             * Quarantined
+             * @default false
+             */
+            quarantined: boolean;
+            /**
+             * Lapsed
+             * @default false
+             */
+            lapsed: boolean;
         };
         /** ReviewCommand */
         ReviewCommand: {
@@ -1276,6 +1382,23 @@ export interface components {
         VersionCommand: {
             /** Expected Version */
             expected_version: number;
+        };
+        /** WorkerView */
+        WorkerView: {
+            /** Worker Id */
+            worker_id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Last Seen At */
+            last_seen_at?: string | null;
+            /** Max Concurrency */
+            max_concurrency: number;
+            /** Current Job */
+            current_job?: string | null;
+            /** Needs A Person */
+            needs_a_person: boolean;
         };
     };
     responses: never;
@@ -2264,6 +2387,174 @@ export interface operations {
                 };
             };
             /** @description Interaction service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    operations_snapshot: {
+        parameters: {
+            query?: {
+                stale?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationsView"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description World Owner role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Operations service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    operations_resolve_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reservation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationsCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description World Owner role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Operations service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    operations_requeue_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reservation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationsCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description World Owner role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Operations service unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

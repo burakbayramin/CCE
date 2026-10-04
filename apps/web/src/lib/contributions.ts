@@ -25,6 +25,14 @@ export async function reviewApi<T>(path = '', method = 'GET', body?: unknown): P
   return authenticatedApi<T>(`/reviews${path}`, method, body);
 }
 
+export async function operationsApi<T>(
+  path = '',
+  method = 'GET',
+  body?: unknown,
+): Promise<ApiResult<T>> {
+  return authenticatedApi<T>(`/operations${path}`, method, body);
+}
+
 async function authenticatedApi<T>(path: string, method: string, body?: unknown): Promise<ApiResult<T>> {
   if (!authConfig()) redirect('/login');
   const client = await authClient();

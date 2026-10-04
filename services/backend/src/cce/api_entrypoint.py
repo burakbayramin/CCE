@@ -15,6 +15,7 @@ from cce.modules.contributions.review_router import review_router
 from cce.modules.contributions.router import contributions_router
 from cce.modules.identity.authentication import TokenVerifier
 from cce.modules.identity.router import identity_router
+from cce.modules.operations.router import operations_router
 
 
 class Health(BaseModel):
@@ -52,6 +53,7 @@ def create_app(
     app.include_router(contributions_router(engine, verifier))
     app.include_router(avatar_router(config, engine, owner_engine, verifier))
     app.include_router(chat_router(engine, owner_engine, verifier))
+    app.include_router(operations_router(engine, owner_engine, verifier))
     app.include_router(
         review_router(
             owner_engine,
