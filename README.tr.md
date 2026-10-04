@@ -608,6 +608,7 @@ Workflow **production deploy yapmaz**. Tamamlanma ve kalan işler
 | [M2 raporu](docs/M2_IDENTITY_AND_CONTRIBUTIONS_REPORT.md) | Kimlik, katkı ve inceleme hattı |
 | [Adversarial inceleme](docs/ADVERSARIAL_REVIEW_2026-10-01.md) | Karşıdan güvenlik taraması; çürütülen iddialar işaretli |
 | [M3.5–M3.6 sürüm notu](docs/RELEASE_NOTES_2026-10-02_M3_5.md) | Definition benisleme, Owner görünümü, uzlaştırma kararı |
+| [Hata desenleri](docs/DEFECT_PATTERNS.md) | M4 boyunca tekrar eden hata sınıfları ve her biri için eklenen önlem |
 | [AGENTS.md](AGENTS.md) | Ajan çalışma kuralları ve repo bağlamı (`graft`) |
 
 ### Teknik dayanaklar

@@ -343,6 +343,7 @@ database/Auth integration tests. It **does not deploy to production**.
 | [M2 identity and contributions report](docs/M2_IDENTITY_AND_CONTRIBUTIONS_REPORT.md) | Identity, submissions, and review |
 | [Adversarial review](docs/ADVERSARIAL_REVIEW_2026-10-01.md) | Security review and disputed findings |
 | [M3.5–M3.6 release note](docs/RELEASE_NOTES_2026-10-02_M3_5.md) | Definition adoption and Owner UI boundary |
+| [Defect patterns](docs/DEFECT_PATTERNS.md) | Recurring failure classes seen while building M4, and the guard added for each |
 | [Contributor instructions](AGENTS.md) | Agent workflow and the Graft context graph |
 
 Technical references: [Next.js installation](https://nextjs.org/docs/app/getting-started/installation),
