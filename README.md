@@ -103,7 +103,10 @@ Implemented and tested, but every command path refuses real content. The
 | Milestone | Scope |
 | :-- | :-- |
 | **M3.2 (final)** | The calibrated local scanner and the model acceptance gate |
-| **M4.4–M4.7** | Processing handlers, delivery, streaming, operations UI |
+| **M4.4** | Processing handlers bound to source identity, atomic turn application, flagged relationship failures |
+| **M4.5** | Idempotent turn acceptance, outbox-driven delivery, publisher plane |
+| **M4.6** | SSE stream of a delivered turn — Realtime channel and response tokens still open |
+| **M4.7** | Operations UI |
 | **M5–M6** | World time, presence, scenes, cognitive state |
 | **M7–M8** | Public projection, World Viewer, staging acceptance |
 

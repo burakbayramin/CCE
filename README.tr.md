@@ -106,7 +106,10 @@ Uygulanmış ve test edilmiş, ancak **her komut yolu gerçek içeriği reddediy
 | Aşama | Kapsam |
 | :-- | :-- |
 | **M3.2 (son)** | Kalibre edilmiş yerel tarayıcı ve model kabulü |
-| **M4.4–M4.7** | İşleyici handler'ları, kabul-teslim, stream, operasyon UI'ı |
+| **M4.4** | Kaynak kimliğine bağlı işleyici handler'ları, atomik tur uygulaması, flag'li ilişki hataları |
+| **M4.5** | İdempotent tur kabulü, outbox ile teslim, yayıncı düzlemi |
+| **M4.6** | Teslim edilmiş turun SSE akışı — Realtime kanalı ve yanıt token'ı açık |
+| **M4.7** | Operasyon UI'ı |
 | **M5–M6** | Dünya saati, presence, scene'ler, bilişsel state |
 | **M7–M8** | Public yayın, World Viewer, staging kabulü |
 
