@@ -71,23 +71,44 @@ Owner reviews it with a reason, and the decision is immutable. Two gates are
 still closed, both deliberately — no accepted moderation model exists, and
 nothing may activate real content yet.
 
-```mermaid
-flowchart TB
-    built["✅ BUILT & VERIFIED<br/>M1 · M2 · M3.1<br/>M4.1–M4.5"]
-    now["🔧 IN PROGRESS<br/>M4.6 — response and streaming<br/>SSE done; Realtime, response tokens, sequencing and final commit remain"]
-    next["⏭ NEXT<br/>M4.7 — operations UI"]
-    later["🌍 LATER<br/>M5–M6 — world, scenes and cognition<br/>M7–M8 — public viewer and staging"]
-    fixture["🧪 TEST FIXTURES ONLY<br/>M3.2 moderation workflow · M3.3–M3.6 character controls"]
-    gate["🔒 REAL-CONTENT GATE<br/>M3.2 local scanner and model acceptance still pending"]
+Milestones are grouped by what they actually do today rather than by number,
+because that distinction matters more than the ordering.
 
-    built --> now --> next --> later
-    fixture -.-> gate
-```
+### ✅ Shipped
 
-M4.1–M4.3 passed CI; M4.4–M4.5 have local integration evidence. The
-fixture-only character controls are implemented and tested, but their database
-`is_fixture` gate refuses real content. The separate M3.2 model gate must pass
-before real-content activation can open.
+| Milestone | What it gives you |
+| :-- | :-- |
+| **M1** — Foundation | Local web/API/database, health checks, three-job CI |
+| **M2** — Identity & contributions | Sign-in, drafts → submission → withdrawal, Owner review, private avatars |
+| **M3.1** — Definition compiler | Immutable, hash-verified character definitions |
+| **M4.1** — Durable job protocol | One reservation per character, fenced leases, model-independent effect identity, outbox |
+| **M4.2** — Queue & worker | pgmq adapter, acknowledgement only after commit, bounded retry, quarantine, recovery scan |
+| **M4.3** — Model boundary | Provider protocol, deterministic fake, enforced token/time/attempt budgets, validated output |
+
+### 🧪 Fixture-only
+
+Implemented and tested, but every command path refuses real content. The
+`is_fixture` gate is enforced in the database, not only in the application.
+
+| Milestone | What it gives you |
+| :-- | :-- |
+| **M3.2** — Moderation queue | Durable queue, attempt/lease protocol, worker loop, Owner wait/retry view |
+| **M3.3** — Activation | Atomic identity and bootstrap record, capacity limits, Owner view |
+| **M3.4** — Lifecycle | Suspend, archive, same-identity restore, reactivate, audited |
+| **M3.5** — Definition changes | Audited adoption, pinned core fields, history preserved |
+| **M3.6** — Operations view | Owner authors characters through the same line; audit shows the real actor |
+
+### ⏳ Open
+
+| Milestone | Scope |
+| :-- | :-- |
+| **M3.2 (final)** | The calibrated local scanner and the model acceptance gate |
+| **M4.4** | Processing handlers bound to source identity, atomic turn application, flagged relationship failures |
+| **M4.5** | Idempotent turn acceptance, outbox-driven delivery, publisher plane |
+| **M4.6** | SSE stream of a delivered turn — Realtime channel and response tokens still open |
+| **M4.7** | Operations UI |
+| **M5–M6** | World time, presence, scenes, cognitive state |
+| **M7–M8** | Public projection, World Viewer, staging acceptance |
 
 > [!WARNING]
 > CCE does **not** yet create live characters or run an accepted automatic
