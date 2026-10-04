@@ -74,44 +74,23 @@ Küratörlük hattı uçtan uca çalışıyor: katkıcı karakter önerir, World
 inceler ve karar değiştirilemez. İki kapı bilinçli olarak kapalı — kabul edilmiş bir
 moderasyon modeli yok ve henüz gerçek içerik aktive edilemiyor.
 
-Aşamalar numaraya göre değil **bugün gerçekten ne yaptıklarına** göre gruplanıyor,
-çünkü bu ayrım sıralamadan daha önemli.
+```mermaid
+flowchart TB
+    built["✅ YAPILDI VE DOĞRULANDI<br/>M1 · M2 · M3.1<br/>M4.1–M4.5"]
+    now["🔧 ŞU ANDA<br/>M4.6 — yanıt ve akış<br/>SSE hazır; Realtime, yanıt token'ı, sıra kontrolü ve final commit açık"]
+    next["⏭ SIRADA<br/>M4.7 — operasyon arayüzü"]
+    later["🌍 SONRA<br/>M5–M6 — dünya, sahneler ve bilişsel durum<br/>M7–M8 — public görünüm ve staging"]
+    fixture["🧪 YALNIZ TEST VERİSİ<br/>M3.2 moderasyon hattı · M3.3–M3.6 karakter kontrolleri"]
+    gate["🔒 GERÇEK İÇERİK KAPISI<br/>M3.2 yerel tarayıcı ve model kabulü bekliyor"]
 
-### ✅ Tamamlandı
+    built --> now --> next --> later
+    fixture -.-> gate
+```
 
-| Aşama | Size kazandırdığı |
-| :-- | :-- |
-| **M1** — Foundation | Lokal web/API/veritabanı, health kontrolleri, üç job'lı CI |
-| **M2** — Kimlik ve katkı | Giriş, taslak → başvuru → geri çekme, Owner incelemesi, private avatar |
-| **M3.1** — Definition derleyici | Değiştirilemez, hash ile doğrulanan karakter tanımları |
-| **M4.1** — Kalıcı iş protokolü | Karakter başına tek rezervasyon, fence'li lease, model-bağımsız etki kimliği, outbox |
-| **M4.2** — Kuyruk ve worker | pgmq adapter, commit sonrası onay, bounded retry, quarantine, recovery taraması |
-| **M4.3** — Model sınırı | Provider protokolü, deterministik fake, zorlanan token/süre/deneme bütçesi, doğrulanan çıktı |
-
-### 🧪 Yalnız test fixture'ı
-
-Uygulanmış ve test edilmiş, ancak **her komut yolu gerçek içeriği reddediyor.**
-`is_fixture` sınırı yalnız uygulamada değil, veritabanında da zorlanıyor.
-
-| Aşama | Size kazandırdığı |
-| :-- | :-- |
-| **M3.2** — Moderasyon kuyruğu | Kalıcı kuyruk, deneme/lease protokolü, worker döngüsü, Owner bekleme/retry görünümü |
-| **M3.3** — Aktivasyon | Atomik kimlik ve başlangıç kaydı, kapasite sınırları, Owner görünümü |
-| **M3.4** — Lifecycle | Askı, arşiv, aynı kimlikle restore, yeniden aktivasyon, denetimli |
-| **M3.5** — Definition değişikliği | Denetimli benimseme, kilitli çekirdek alanlar, korunan geçmiş |
-| **M3.6** — Yönetim görünümü | Owner karakterleri aynı hatta yazıyor; audit gerçek aktörü gösteriyor |
-
-### ⏳ Açık
-
-| Aşama | Kapsam |
-| :-- | :-- |
-| **M3.2 (son)** | Kalibre edilmiş yerel tarayıcı ve model kabulü |
-| **M4.4** | Kaynak kimliğine bağlı işleyici handler'ları, atomik tur uygulaması, flag'li ilişki hataları |
-| **M4.5** | İdempotent tur kabulü, outbox ile teslim, yayıncı düzlemi |
-| **M4.6** | Teslim edilmiş turun SSE akışı — Realtime kanalı ve yanıt token'ı açık |
-| **M4.7** | Operasyon UI'ı |
-| **M5–M6** | Dünya saati, presence, scene'ler, bilişsel state |
-| **M7–M8** | Public yayın, World Viewer, staging kabulü |
+M4.1–M4.3 CI'da, M4.4–M4.5 yerel entegrasyon testleriyle doğrulandı. Test
+karakteri kontrolleri uygulanmış olsa da veritabanındaki `is_fixture` kapısı
+gerçek içeriği reddeder. Gerçek içerik aktivasyonu açılmadan önce ayrı M3.2
+model kabul kapısının geçilmesi gerekir.
 
 > [!WARNING]
 > **Bu dilim canlı karakter oluşturmaz ve gerçek otomatik moderasyon yapılandırmamıştır.**
